@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Акт оказанных услуг - {{ recipient.full_name }}</title>
+    <style>
+        @page {
+            size: A4 portrait;
+            margin: 10mm;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 10pt;
+            line-height: 1.2;
+            color: #000;
+            background: #fff;
+        }
+        
+        .act-container {
+            width: 190mm;
+            margin: 0 auto;
+        }
+        
+        /* Header */
+        .act-header {
+            text-align: center;
+            margin-bottom: 5mm;
+        }
+        
+        .act-title {
+            font-size: 11pt;
+            font-weight: bold;
+        }
+        
+        .act-period {
+            font-size: 11pt;
+            font-weight: bold;
+        }
+        
+        /* Info sections */
+        .act-info {
+            margin-bottom: 3mm;
+            text-align: justify;
+        }
+        
+        .act-info-label {
+            font-weight: bold;
+        }
+        
+        .act-note {
+            margin-bottom: 3mm;
+            font-size: 9pt;
+        }
+        
+        /* Table */
+        .act-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 3mm;
+            font-size: 9pt;
+        }
+        
+        .act-table th,
+        .act-table td {
+            border: 0.5pt solid windowtext;
+            padding: 1mm 2mm;
+            vertical-align: middle;
+        }
+        
+        .act-table th {
+            text-align: center;
+            font-weight: normal;
+        }
+        
+        .col-num {
+            width: 12mm;
+            text-align: center;
+        }
+        
+        .col-name {
+            text-align: left;
+        }
+        
+        .col-price {
+            width: 22mm;
+            text-align: right;
+        }
+        
+        .col-qty {
+            width: 15mm;
+            text-align: center;
+        }
+        
+        .col-sum {
+            width: 22mm;
+            text-align: right;
+        }
+        
+        /* Category row */
+        .category-row td {
+            font-weight: bold;
+            border-top: 0.5pt solid windowtext;
+            border-bottom: 0.5pt solid windowtext;
+        }
+        
+        /* Subtotal row */
+        .subtotal-row td {
+            font-weight: bold;
+        }
+        
+        /* Total row */
+        .total-row td {
+            font-weight: bold;
+            font-size: 10pt;
+            border-top: 0.5pt solid windowtext;
+        }
+        
+        /* Summary section */
+        .summary-section {
+            margin-top: 4mm;
+            margin-bottom: 4mm;
+            font-size: 10pt;
+        }
+        
+        .summary-row {
+            margin-bottom: 2mm;
+        }
+        
+        .summary-label {
+            display: inline-block;
+            width: 100mm;
+        }
+        
+        .summary-value {
+            display: inline-block;
+            width: 30mm;
+            text-align: right;
+            font-weight: bold;
+        }
+        
+        .summary-unit {
+            display: inline-block;
+            width: 10mm;
+        }
+        
+        /* Note about 75% */
+        .note-75 {
+            margin: 3mm 0;
+            font-size: 9pt;
+            text-align: justify;
+        }
+        
+        /* Signatures */
+        .signatures {
+            margin-top: 10mm;
+        }
+        
+        .signature-block {
+            margin-bottom: 5mm;
+            font-size: 10pt;
+        }
+        
+        .signature-title {
+            font-size: 9pt;
+            color: #666;
+        }
+        
+        /* Print button - hidden when printing */
+        .print-button {
+            position: fixed;
+            top: 10mm;
+            right: 10mm;
+            padding: 3mm 6mm;
+            background: #0ea5e9;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11pt;
+            z-index: 1000;
+        }
+        
+        .print-button:hover {
+            background: #0284c7;
+        }
+        
+        @media print {
+            .print-button {
+                display: none !important;
+            }
+            
+            body {
+                font-size: 9pt;
+            }
+            
+            .act-container {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="print-button" onclick="window.print()">🖨 Печать</button>
+    
+    <div class="act-container">
+        <!-- Header -->
+        <div class="act-header">
+            <div class="act-title">Акт об оказании социальных услуг</div>
+            <div class="act-period">за {{ month_name }} {{ year }} г.</div>
+        </div>
+        
+        <!-- Исполнитель -->
+        <div class="act-info">
+            <span class="act-info-label">Исполнитель:</span>
+            <span> Государственное автономное учреждение социального обслуживания граждан пожилого возраста и инвалидов системы социальной защиты населения Пензенской области "Сосновский дом социального обслуживания" в лице заместителя директора по социальной работе Бондаренко Кирилла Петровича
+		</div>
+        
+        <!-- Заказчик -->
+        <div class="act-info">
+            <span class="act-info-label">Заказчик:</span>
+            <span>  Управление социальной защиты населения администрации Бесоновского района в лице заместителя начальника Управления Соколова Сергея Анатольевича, действующего в интересах недееспособного {{ recipient.full_name }} {{ recipient.birth_date|date:"d.m.Y" }}г.</span>
+        </div>
+        
+        <div class="act-note">
+            Испонитель за период выполнил обязательства по оказанию следующих социальных услуг:
+        </div>
+        
+        <!-- Services Table -->
+        <table class="act-table">
+            <thead>
+                <tr>
+                    <th class="col-num">№</th>
+                    <th class="col-name">Наименование социальной услуги</th>
+                    <th class="col-price">Цена, руб.</th>
+                    <th class="col-qty">Кол-во</th>
+                    <th class="col-sum">Сумма, руб.</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% regroup services_data by service.category as categories %}
+                {% for category in categories %}
+                    <tr class="category-row">
+                        <td colspan="5">{{ category.grouper.name|default:"Без категории" }}:</td>
+                    </tr>
+                    {% for item in category.list %}
+                    <tr>
+                        <td class="col-num">{{ forloop.counter }}</td>
+                        <td class="col-name">{{ item.service.name }}</td>
+                        <td class="col-price">{{ item.price|floatformat:2 }}</td>
+                        <td class="col-qty">{% if item.quantity > 0 %}{{ item.quantity }}{% endif %}</td>
+                        <td class="col-sum">{{ item.total|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                    <tr class="subtotal-row">
+                        <td colspan="4" style="text-align: right; padding-right: 3mm;">Итого:</td>
+                        <td class="col-sum">0,00</td>
+                    </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="text-align: center; padding: 5mm;">Нет услуг в ИППСУ</td>
+                </tr>
+                {% endfor %}
+                
+                <tr class="total-row">
+                    <td colspan="4" style="text-align: right; padding-right: 3mm;">
+                        Всего стоимость социальных услуг за месяц:
+                    </td>
+                    <td class="col-sum">{{ total_sum|floatformat:2 }}</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <!-- Note about 75% -->
+        <div class="note-75">
+            Сумма фактически начисленной платы за предоставленные социальные услуги, в соответствии с законодательством РФ не должна превышать 75% среднедушевого дохода, установленного в соответствии с законодательством и др.
+        </div>
+        
+        <!-- Summary -->
+        <div class="summary-section">
+            <div class="summary-row">
+                <span class="summary-label">Сумма среднедушевого дохода получателя:</span>
+                <span class="summary-value">0,00</span>
+                <span class="summary-unit">руб.</span>
+            </div>
+            <div class="summary-row">
+                <span class="summary-label">Сумма 75% от среднедушевого дохода:</span>
+                <span class="summary-value">0,00</span>
+                <span class="summary-unit">руб.</span>
+            </div>
+            <div class="summary-row">
+                <span class="summary-label">Сумма ежемесячной платы за социальные услуги в ИП:</span>
+                <span class="summary-value">{{ total_sum|floatformat:2 }}</span>
+                <span class="summary-unit">руб.</span>
+            </div>
+            <div class="summary-row">
+                <span class="summary-label">Сумма в счет платы за социальные услуги:</span>
+                <span class="summary-value">0,00</span>
+                <span class="summary-unit">руб.</span>
+            </div>
+            <div class="summary-row">
+                <span class="summary-label">Переплата/недоплата за социальные услуги:</span>
+                <span class="summary-value">{{ total_sum|floatformat:2 }}</span>
+                <span class="summary-unit">руб.</span>
+            </div>
+        </div>
+        
+        <!-- Signatures -->
+        <div class="signatures">
+            <div class="signature-block">
+                Директор ______________________________ / &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; /<br>
+                <span class="signature-title">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; М.П.</span>
+            </div>
+            <div class="signature-block">
+                Бухгалтер ______________________________ / &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; /
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Автоматическая печать при загрузке страницы
+        window.onload = function() {
+            window.print();
+        }
+    </script>
+</body>
+</html>

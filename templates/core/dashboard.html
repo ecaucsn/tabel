@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+
+{% block title %}Главная{% endblock %}
+
+{% block content %}
+<div class="py-8">
+    <!-- Welcome Section -->
+    <div class="mb-8">
+        <h1 class="text-2xl font-semibold text-slate-800">Добро пожаловать, {{ user.get_full_name }}!</h1>
+        <p class="text-slate-500 mt-1">Система учета социальных услуг для учреждения</p>
+    </div>
+    
+    <!-- Quick Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-slate-500">Проживающих</p>
+                    <p class="text-2xl font-semibold text-slate-800 mt-1">{{ stats.recipients_total }}</p>
+                </div>
+                <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                    </svg>
+                </div>
+            </div>
+            <div class="mt-4 flex items-center text-sm">
+                <span class="text-green-600 font-medium">{{ stats.recipients_active }}</span>
+                <span class="text-slate-400 ml-1">активных</span>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-slate-500">Услуг в месяц</p>
+                    <p class="text-2xl font-semibold text-slate-800 mt-1">{{ stats.services_this_month }}</p>
+                </div>
+                <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+                    </svg>
+                </div>
+            </div>
+            <div class="mt-4 flex items-center text-sm">
+                <span class="text-slate-400">за {{ current_month_name }}</span>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-slate-500">Отделений</p>
+                    <p class="text-2xl font-semibold text-slate-800 mt-1">{{ stats.departments }}</p>
+                </div>
+                <div class="w-12 h-12 bg-violet-100 rounded-xl flex items-center justify-center">
+                    <svg class="w-6 h-6 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-slate-500">Видов услуг</p>
+                    <p class="text-2xl font-semibold text-slate-800 mt-1">{{ stats.services_total }}</p>
+                </div>
+                <div class="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center">
+                    <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Quick Actions -->
+    <div class="mb-8">
+        <h2 class="text-lg font-semibold text-slate-800 mb-4">Быстрые действия</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <a href="{% url 'services:tabel' %}" 
+               class="group bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md hover:border-primary-300 transition-all">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-primary-100 rounded-xl flex items-center justify-center group-hover:bg-primary-200 transition-colors">
+                        <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-slate-800 group-hover:text-primary-600 transition-colors">Заполнить табель</h3>
+                        <p class="text-sm text-slate-500 mt-0.5">Ввод оказанных услуг за день</p>
+                    </div>
+                </div>
+            </a>
+            
+            <a href="{% url 'reports:act_generator' %}" 
+               class="group bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md hover:border-primary-300 transition-all">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center group-hover:bg-green-200 transition-colors">
+                        <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-slate-800 group-hover:text-primary-600 transition-colors">Сформировать акт</h3>
+                        <p class="text-sm text-slate-500 mt-0.5">Генерация акта выполненных услуг</p>
+                    </div>
+                </div>
+            </a>
+            
+            <a href="{% url 'recipients:list' %}" 
+               class="group bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md hover:border-primary-300 transition-all">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-violet-100 rounded-xl flex items-center justify-center group-hover:bg-violet-200 transition-colors">
+                        <svg class="w-6 h-6 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-slate-800 group-hover:text-primary-600 transition-colors">Проживающие</h3>
+                        <p class="text-sm text-slate-500 mt-0.5">Карточки и ИППСУ</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+    
+    <!-- Recent Activity -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <h2 class="text-lg font-semibold text-slate-800 mb-4">Последние записи в табеле</h2>
+            {% if recent_logs %}
+            <div class="space-y-3">
+                {% for log in recent_logs %}
+                <div class="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-sm font-medium text-slate-600">
+                            {{ log.recipient.full_name|slice:":1" }}
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-slate-700">{{ log.recipient.full_name }}</p>
+                            <p class="text-xs text-slate-500">{{ log.service.name }}</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm font-medium text-slate-700">{{ log.quantity }} шт.</p>
+                        <p class="text-xs text-slate-400">{{ log.date|date:"d.m.Y" }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-slate-500 text-sm py-4 text-center">Нет записей за этот месяц</p>
+            {% endif %}
+        </div>
+        
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <h2 class="text-lg font-semibold text-slate-800 mb-4">Отделения</h2>
+            <div class="space-y-3">
+                {% for dept in departments %}
+                <div class="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 bg-primary-100 rounded-lg flex items-center justify-center">
+                            <span class="text-sm font-medium text-primary-600">{{ dept.name|slice:":1" }}</span>
+                        </div>
+                        <span class="text-sm font-medium text-slate-700">{{ dept.name }}</span>
+                    </div>
+                    <span class="text-sm text-slate-500">{{ dept.recipient_count }} чел.</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
