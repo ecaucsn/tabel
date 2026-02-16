@@ -6,11 +6,14 @@ services:
     container_name: social_services
     restart: unless-stopped
     volumes:
+      # Persist media files (photos) on host
       - ./media:/app/media
-      - ./db.sqlite3:/app/db.sqlite3
+      # Persist database on host (for SQLite)
+      - ./data:/app/data
     ports:
       - "8000:8000"
     environment:
       - DEBUG=0
-      - SECRET_KEY=your-secret-key-change-this-in-production
-      - ALLOWED_HOSTS=localhost,127.0.0.1,your-server-ip
+      - SECRET_KEY=${SECRET_KEY:-change-this-secret-key-in-production}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1}
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///db.sqlite3}

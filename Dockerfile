@@ -1,33 +1,41 @@
 FROM python:3.11-slim
 
-# Устанавливаем системные зависимости
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# Install system dependencies for WeasyPrint
 RUN apt-get update && apt-get install -y \
     gcc \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libgdk-pixbuf2.0-0 \
+    libffi-dev \
+    shared-mime-info \
     && rm -rf /var/lib/apt/lists/*
 
-# Создаём рабочую директорию
+# Create working directory
 WORKDIR /app
 
-# Копируем requirements и устанавливаем зависимости
+# Copy requirements and install dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt && \
-    pip install gunicorn
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Копируем проект
+# Copy project
 COPY . .
 
-# Создаём директории для статики и медиа
+# Create directories for static and media files
 RUN mkdir -p /app/staticfiles /app/media
 
-# Собираем статику
+# Collect static files
 RUN python manage.py collectstatic --noinput
 
-# Создаём пользователя для безопасности
+# Create user for security
 RUN useradd -m appuser && chown -R appuser:appuser /app
 USER appuser
 
-# Открываем порт
+# Expose port
 EXPOSE 8000
 
-# Запускаем gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "config.wsgi:application"]
+# Run gunicorn
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "2", "config.wsgi:application"]
