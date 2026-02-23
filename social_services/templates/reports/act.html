@@ -1,0 +1,206 @@
+{% extends 'base.html' %}
+
+{% block title %}Акт оказанных услуг - {{ recipient.full_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    @media print {
+        body { background: white; }
+        nav, footer, .no-print { display: none !important; }
+        .print-only { display: block !important; }
+    }
+    
+    .act-container {
+        max-width: 900px;
+        margin: 0 auto;
+        background: white;
+        padding: 40px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    
+    .act-header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+    
+    .act-title {
+        font-size: 18px;
+        font-weight: bold;
+        margin-bottom: 20px;
+    }
+    
+    .act-info {
+        margin-bottom: 20px;
+        line-height: 1.8;
+    }
+    
+    .act-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 30px;
+    }
+    
+    .act-table th, .act-table td {
+        border: 1px solid #000;
+        padding: 8px 12px;
+        text-align: left;
+    }
+    
+    .act-table th {
+        background-color: #f0f0f0;
+        font-weight: bold;
+        text-align: center;
+    }
+    
+    .act-table .number {
+        width: 50px;
+        text-align: center;
+    }
+    
+    .act-table .quantity, .act-table .price, .act-table .total {
+        width: 80px;
+        text-align: right;
+    }
+    
+    .act-total {
+        font-size: 16px;
+        font-weight: bold;
+        text-align: right;
+        margin-bottom: 30px;
+    }
+    
+    .act-signatures {
+        margin-top: 50px;
+    }
+    
+    .signature-line {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 30px;
+    }
+    
+    .signature-field {
+        width: 45%;
+    }
+    
+    .signature-field .line {
+        border-bottom: 1px solid #000;
+        height: 30px;
+        margin-bottom: 5px;
+    }
+    
+    .signature-field .label {
+        font-size: 12px;
+        color: #666;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="no-print mb-4">
+    <a href="{% url 'reports:export_act_pdf' recipient.id year month %}" 
+       class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg inline-flex items-center gap-2">
+        📥 Скачать PDF
+    </a>
+    <button onclick="window.print()" 
+            class="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg inline-flex items-center gap-2 ml-2">
+        🖨️ Печать
+    </button>
+    <a href="{% url 'reports:act_generator' %}" 
+       class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg inline-flex items-center gap-2 ml-2">
+        ← Назад
+    </a>
+</div>
+
+<div class="act-container">
+    <div class="act-header">
+        <div class="act-title">АКТ</div>
+        <div>оказанных социальных услуг</div>
+        <div>за {{ month_name }} {{ year }} года</div>
+    </div>
+    
+    <div class="act-info">
+        <p><strong>Получатель социальных услуг:</strong> {{ recipient.full_name }}</p>
+        <p><strong>Дата рождения:</strong> {{ recipient.birth_date|date:"d.m.Y" }}</p>
+        <p><strong>Отделение:</strong> {{ recipient.department.name }}</p>
+        <p><strong>Комната:</strong> {{ recipient.room|default:"--" }}</p>
+        <p><strong>Период:</strong> {{ month_name }} {{ year }} года (с 01.{{ month|stringformat:"02d" }}.{{ year }} по {{ days_in_month }}.{{ month|stringformat:"02d" }}.{{ year }})</p>
+    </div>
+    
+    <table class="act-table">
+        <thead>
+            <tr>
+                <th class="number">№ п/п</th>
+                <th>Наименование услуги</th>
+                <th class="quantity">Кол-во</th>
+                <th class="price">Цена, руб.</th>
+                <th class="total">Сумма, руб.</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in services_data %}
+            <tr>
+                <td class="number">{{ forloop.counter }}</td>
+                <td>{{ item.service.code }}. {{ item.service.name }}</td>
+                <td class="quantity">{{ item.quantity }}</td>
+                <td class="price">{{ item.price|floatformat:2 }}</td>
+                <td class="total">{{ item.total|floatformat:2 }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" class="text-center py-4">Нет оказанных услуг за указанный период</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="4" style="text-align: right; font-weight: bold;">Итого</td>
+                <td class="total" style="font-weight: bold;">{{ total_sum|floatformat:2 }} руб.</td>
+            </tr>
+        </tfoot>
+    </table>
+    
+    <div class="act-total">
+        Всего оказано услуг: {{ services_data|length }} на сумму: {{ total_sum|floatformat:2 }} руб.
+    </div>
+    
+    <div class="act-signatures">
+        <div class="signature-line">
+            <div class="signature-field">
+                <div class="line"></div>
+                <div class="label">Директор учреждения</div>
+            </div>
+            <div class="signature-field">
+                <div class="line"></div>
+                <div class="label">Подпись</div>
+            </div>
+        </div>
+        
+        <div class="signature-line">
+            <div class="signature-field">
+                <div class="line"></div>
+                <div class="label">Главный бухгалтер</div>
+            </div>
+            <div class="signature-field">
+                <div class="line"></div>
+                <div class="label">Подпись</div>
+            </div>
+        </div>
+        
+        <div class="signature-line">
+            <div class="signature-field">
+                <div class="line"></div>
+                <div class="label">Заведующий отделением</div>
+            </div>
+            <div class="signature-field">
+                <div class="line"></div>
+                <div class="label">Подпись</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mt-8 text-sm text-gray-500">
+        Акт составлен: {{ today|date:"d.m.Y" }}
+    </div>
+</div>
+{% endblock %}

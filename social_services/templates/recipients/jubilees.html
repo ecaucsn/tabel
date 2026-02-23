@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+
+{% block title %}Список юбиляров - Социальные услуги{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <div class="flex items-center justify-between mb-6">
+            <h1 class="text-2xl font-bold text-slate-800">Список юбиляров</h1>
+            <a href="{% url 'recipients:lists' %}" class="text-primary-600 hover:text-primary-700">
+                ← Назад к спискам
+            </a>
+        </div>
+        
+        <!-- Форма выбора месяца и года -->
+        <form method="get" class="mb-6">
+            <div class="flex flex-wrap items-end gap-4">
+                <div>
+                    <label for="month" class="block text-sm font-medium text-slate-700 mb-1">Месяц</label>
+                    <select name="month" id="month" class="block w-48 rounded-md border-slate-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                        <option value="">-- Выберите месяц --</option>
+                        {% for month_num, month_name in months %}
+                        <option value="{{ month_num }}" {% if selected_month == month_num %}selected{% endif %}>{{ month_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div>
+                    <label for="year" class="block text-sm font-medium text-slate-700 mb-1">Год</label>
+                    <select name="year" id="year" class="block w-32 rounded-md border-slate-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                        <option value="">-- Год --</option>
+                        {% for year in years %}
+                        <option value="{{ year }}" {% if selected_year == year %}selected{% endif %}>{{ year }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <button type="submit" class="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors">
+                    Сформировать
+                </button>
+                
+                {% if jubilees %}
+                <button type="button" onclick="window.print()" class="px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700 transition-colors print:hidden">
+                    Печать
+                </button>
+                {% endif %}
+            </div>
+        </form>
+        
+        {% if selected_month and selected_year %}
+            {% if jubilees %}
+                <!-- Заголовок для печати -->
+                <div class="text-center mb-6">
+                    <h2 class="text-xl font-semibold text-slate-800">
+                        Юбиляры {{ month_name }} {{ selected_year }} года
+                    </h2>
+                    <p class="text-slate-600 mt-1">Всего юбиляров: {{ jubilees|length }}</p>
+                </div>
+                
+                <!-- Таблица юбиляров -->
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-slate-200">
+                        <thead class="bg-slate-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">№</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">ФИО</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Отделение</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Дата рождения</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Возраст</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Комната</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-slate-200">
+                            {% for item in jubilees %}
+                            <tr class="hover:bg-slate-50">
+                                <td class="px-4 py-3 text-sm text-slate-900">{{ forloop.counter }}</td>
+                                <td class="px-4 py-3 text-sm text-slate-900 font-medium">
+                                    {{ item.recipient.last_name }} {{ item.recipient.first_name }} {{ item.recipient.patronymic }}
+                                </td>
+                                <td class="px-4 py-3 text-sm text-slate-600">{{ item.department.name|default:"—" }}</td>
+                                <td class="px-4 py-3 text-sm text-slate-600">{{ item.birth_date|date:"d.m.Y" }}</td>
+                                <td class="px-4 py-3 text-sm font-semibold text-amber-600">{{ item.age }} лет</td>
+                                <td class="px-4 py-3 text-sm text-slate-600">{{ item.room|default:"—" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-12 bg-slate-50 rounded-lg">
+                    <svg class="w-16 h-16 text-slate-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <p class="text-slate-600 text-lg">В выбранном месяце юбиляров нет</p>
+                    <p class="text-slate-500 text-sm mt-2">Попробуйте выбрать другой месяц или год</p>
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="text-center py-12 bg-slate-50 rounded-lg">
+                <svg class="w-16 h-16 text-slate-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                </svg>
+                <p class="text-slate-600 text-lg">Выберите месяц и год для формирования списка</p>
+                <p class="text-slate-500 text-sm mt-2">Список будет содержать проживающих, у которых юбилей (возраст кратен 5)</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Стили для печати -->
+<style media="print">
+    @media print {
+        body * {
+            visibility: hidden;
+        }
+        .print\:hidden {
+            display: none !important;
+        }
+        .max-w-4xl, .max-w-4xl * {
+            visibility: visible;
+        }
+        .max-w-4xl {
+            width: 100%;
+            max-width: none;
+            margin: 0;
+            padding: 0;
+        }
+        .bg-white {
+            box-shadow: none !important;
+        }
+        form {
+            display: none !important;
+        }
+    }
+</style>
+{% endblock %}

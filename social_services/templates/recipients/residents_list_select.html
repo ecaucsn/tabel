@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+{% load service_tags %}
+
+{% block title %}Список проживающих{% endblock %}
+
+{% block content %}
+<div class="py-6">
+    <!-- Header Section -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mx-4 mb-4">
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <!-- Title with back button -->
+            <div class="flex items-center gap-4">
+                <a href="{% url 'recipients:lists' %}" class="p-2 hover:bg-slate-100 rounded-lg transition-colors" title="Назад к спискам">
+                    <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                    </svg>
+                </a>
+                <div>
+                    <h1 class="text-xl font-semibold text-slate-800">Список проживающих</h1>
+                    <p class="text-sm text-slate-500 mt-1">Выберите отделение для формирования списка</p>
+                </div>
+            </div>
+            
+            <!-- Filters -->
+            <div class="flex flex-wrap items-center gap-3">
+                <div class="flex flex-col">
+                    <label class="text-xs font-medium text-slate-500 mb-1">Отделение</label>
+                    <select id="departmentSelect" onchange="loadResidentsList()"
+                            class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 min-w-[180px]">
+                        <option value="">Все отделения</option>
+                        {% for dept in departments %}
+                        <option value="{{ dept.id }}" data-count="{{ dept.recipient_count }}">
+                            {{ dept.name }} ({{ dept.recipient_count }} чел.)
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="flex flex-col">
+                    <label class="text-xs font-medium text-slate-500 mb-1">Группировка</label>
+                    <select id="groupMode" onchange="loadResidentsList()"
+                            class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 min-w-[150px]">
+                            <option value="list">Общий список</option>
+                            <option value="grouped">По комнатам</option>
+                        </select>
+                </div>
+                
+                <div class="flex flex-col">
+                    <label class="text-xs font-medium text-slate-500 mb-1">&nbsp;</label>
+                    <button onclick="openPrintWindow()" id="printBtn" disabled
+                            class="px-4 py-2 bg-primary-500 hover:bg-primary-600 disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                        </svg>
+                        Печать
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Content Area -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 mx-4">
+        <div id="loadingIndicator" class="hidden p-12">
+            <div class="flex flex-col items-center text-center">
+                <svg class="animate-spin w-12 h-12 text-primary-500 mb-4" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p class="text-slate-500">Загрузка...</p>
+            </div>
+        </div>
+        
+        <div id="emptyState" class="p-12">
+            <div class="flex flex-col items-center text-center">
+                <svg class="w-16 h-16 text-slate-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                </svg>
+                <p class="text-slate-500 font-medium">Выберите отделение</p>
+                <p class="text-slate-400 text-sm mt-1">Список проживающих отобразится автоматически</p>
+            </div>
+        </div>
+        
+        <div id="residentsContent" class="hidden"></div>
+    </div>
+</div>
+
+<script>
+let currentDepartment = '';
+let currentGroupMode = 'grouped';
+
+function loadResidentsList() {
+    const dept = document.getElementById('departmentSelect').value;
+    const groupMode = document.getElementById('groupMode').value;
+    
+    currentDepartment = dept;
+    currentGroupMode = groupMode;
+    
+    // Показываем индикатор загрузки
+    document.getElementById('emptyState').classList.add('hidden');
+    document.getElementById('residentsContent').classList.add('hidden');
+    document.getElementById('loadingIndicator').classList.remove('hidden');
+    document.getElementById('printBtn').disabled = true;
+    
+    // Формируем URL
+    let url = '{% url "recipients:residents_list_print" %}?';
+    if (dept) {
+        url += `departments=${dept}&`;
+    } else {
+        url += `departments=all&`;
+    }
+    url += `mode=${groupMode}`;
+    
+    // Загружаем контент
+    fetch(url)
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('loadingIndicator').classList.add('hidden');
+            
+            // Извлекаем только содержимое блока print-page
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const printPage = doc.querySelector('.print-page');
+            
+            if (printPage) {
+                // Скрываем кнопки no-print
+                printPage.querySelectorAll('.no-print').forEach(el => el.remove());
+                
+                document.getElementById('residentsContent').innerHTML = printPage.outerHTML;
+                document.getElementById('residentsContent').classList.remove('hidden');
+                document.getElementById('printBtn').disabled = false;
+            } else {
+                document.getElementById('emptyState').classList.remove('hidden');
+            }
+        })
+        .catch(error => {
+            console.error('Ошибка загрузки:', error);
+            document.getElementById('loadingIndicator').classList.add('hidden');
+            document.getElementById('emptyState').classList.remove('hidden');
+        });
+}
+
+function openPrintWindow() {
+    const dept = document.getElementById('departmentSelect').value;
+    const groupMode = document.getElementById('groupMode').value;
+    
+    let url = '{% url "recipients:residents_list_print" %}?';
+    if (dept) {
+        url += `departments=${dept}&`;
+    } else {
+        url += `departments=all&`;
+    }
+    url += `mode=${groupMode}`;
+    
+    window.open(url, '_blank', 'width=800,height=600');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,140 @@
+{% load service_tags %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Список проживающих - {{ department.name }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Times New Roman', serif; font-size: 10pt; padding: 5mm; }
+        
+        h1 { 
+            text-align: center; 
+            font-size: 12pt; 
+            margin-bottom: 3mm;
+            width: 19cm;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        table { 
+            width: 19cm; 
+            border-collapse: collapse; 
+            font-size: 10pt; 
+            margin-bottom: 3mm;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        th, td { 
+            border: 1px solid black; 
+            padding: 0; 
+            text-align: left; 
+            vertical-align: middle; 
+            height: 3mm;
+            line-height: 3mm;
+        }
+        
+        th { 
+            background-color: #ddd; 
+            font-weight: bold; 
+            text-align: center;
+            height: 3mm;
+            line-height: 3mm;
+        }
+        
+        .number-col { 
+            width: 8mm; 
+            text-align: center; 
+        }
+        
+        .date-col { 
+            width: 22mm; 
+            text-align: center; 
+        }
+        
+        .age-col { 
+            width: 12mm; 
+            text-align: center; 
+        }
+        
+        .room-col { 
+            width: 15mm; 
+            text-align: center; 
+        }
+        
+        .signature-section {
+            margin-top: 10mm;
+            padding-top: 5mm;
+        }
+        
+        .signature-line {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15mm;
+        }
+        
+        .signature-field {
+            text-align: center;
+            width: 60mm;
+        }
+        
+        .signature-field .line {
+            border-bottom: 1px solid black;
+            margin-bottom: 2mm;
+            height: 10mm;
+        }
+        
+        .signature-field .label {
+            font-size: 8pt;
+        }
+        
+        @page { 
+            size: A4 portrait; 
+            margin: 10mm; 
+        }
+        
+        @media print { 
+            body { padding: 0; }
+        }
+    </style>
+</head>
+<body>
+    <h1>Список проживающих отделения: {{ department.name }} на {{ today|date:"d.m.Y" }}</h1>
+    
+    <table>
+        <thead>
+            <tr>
+                <th class="number-col">№</th>
+                <th>ФИО</th>
+                <th class="date-col">Дата рождения</th>
+                <th class="age-col">Возраст</th>
+                <th class="room-col">Комната</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for resident in all_recipients %}
+            <tr>
+                <td class="number-col">{{ forloop.counter }}</td>
+                <td>{{ resident.full_name }}</td>
+                <td class="date-col">{{ resident.birth_date|date:"d.m.Y" }}</td>
+                <td class="age-col">{{ resident.age }}</td>
+                <td class="room-col">{{ resident.room|default:"—" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" style="text-align: center;">В отделении нет проживающих</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    
+    
+    <script>
+        window.onload = function() {
+            window.print();
+        };
+    </script>
+</body>
+</html>

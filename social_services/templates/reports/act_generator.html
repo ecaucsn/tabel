@@ -1,0 +1,526 @@
+{% extends 'base.html' %}
+{% load service_tags %}
+
+{% block title %}Генерация актов{% endblock %}
+
+{% block main_container_class %}w-full px-4 sm:px-6 lg:px-8 py-6{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Page Layout */
+    .act-page {
+        margin: 0;
+        padding: 0;
+        min-height: 100vh;
+    }
+    
+    /* Summary Card */
+    .summary-card {
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        border: 1px solid #e2e8f0;
+    }
+    
+    .summary-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    
+    .summary-row:last-child {
+        border-bottom: none;
+    }
+    
+    .summary-label {
+        color: #475569;
+        font-size: 0.875rem;
+    }
+    
+    .summary-value {
+        font-weight: 600;
+        font-size: 1rem;
+        min-width: 120px;
+        text-align: right;
+    }
+    
+    .summary-value.editable {
+        background: white;
+        border: 1px solid #cbd5e1;
+        border-radius: 0.375rem;
+        padding: 0.375rem 0.75rem;
+        width: 140px;
+    }
+    
+    .summary-value.editable:focus {
+        outline: none;
+        border-color: #0ea5e9;
+        box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+    }
+    
+    .summary-value.positive {
+        color: #059669;
+    }
+    
+    .summary-value.negative {
+        color: #dc2626;
+    }
+    
+    /* Table Styles */
+    .act-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+    }
+    
+    .act-table th, .act-table td {
+        border: 1px solid #e2e8f0;
+        padding: 8px 12px;
+        vertical-align: middle;
+    }
+    
+    .act-table th {
+        background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+        color: white;
+        font-weight: 600;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    
+    .col-num {
+        width: 60px;
+        text-align: center;
+        font-weight: 600;
+        color: #64748b;
+    }
+    
+    .col-name {
+        text-align: left;
+    }
+    
+    .col-price {
+        width: 100px;
+        text-align: right;
+    }
+    
+    .col-qty {
+        width: 80px;
+        text-align: center;
+    }
+    
+    .col-sum {
+        width: 120px;
+        text-align: right;
+        font-weight: 600;
+    }
+    
+    /* Category row */
+    .category-row td {
+        font-weight: 600;
+        background: #f8fafc;
+        color: #334155;
+        border-top: 2px solid #0ea5e9;
+    }
+    
+    /* Subtotal row */
+    .subtotal-row td {
+        font-weight: 600;
+        background: #f1f5f9;
+    }
+    
+    /* Total row */
+    .total-row td {
+        font-weight: 700;
+        background: #f8fafc;
+        font-size: 14px;
+        border-top: 2px solid #0ea5e9;
+    }
+    
+    .total-row .col-sum {
+        color: #0ea5e9;
+        font-size: 16px;
+    }
+    
+    /* Print Styles */
+    @media print {
+        .no-print { display: none !important; }
+        .act-page { margin: 0; padding: 0; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{% csrf_token %}
+<div class="act-page">
+    <!-- Header Section -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 m-4 mb-4">
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <!-- Title with back button -->
+            <div class="flex items-center gap-4">
+                <a href="{% url 'dashboard' %}" class="p-2 hover:bg-slate-100 rounded-lg transition-colors" title="На главную">
+                    <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                    </svg>
+                </a>
+                <div>
+                    <h1 class="text-xl font-semibold text-slate-800">Генерация актов оказанных услуг</h1>
+                    <p class="text-sm text-slate-500 mt-1">Выберите период и проживающего для формирования акта</p>
+                </div>
+            </div>
+            
+            <!-- Filters -->
+            <div class="flex flex-wrap items-center gap-3">
+                <div class="flex flex-col">
+                    <label class="text-xs font-medium text-slate-500 mb-1">Год</label>
+                    <select id="yearSelect" 
+                            class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                        {% for y in years %}
+                        <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="flex flex-col">
+                    <label class="text-xs font-medium text-slate-500 mb-1">Месяц</label>
+                    <select id="monthSelect"
+                            class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                        {% for m, m_name in months %}
+                        <option value="{{ m }}" {% if m == month_index %}selected{% endif %}>{{ m_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="flex flex-col">
+                    <label class="text-xs font-medium text-slate-500 mb-1">Отделение</label>
+                    <select id="departmentSelect"
+                            class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 min-w-[150px]">
+                        <option value="">Все отделения</option>
+                        {% for dept in departments %}
+                        <option value="{{ dept.id }}" {% if dept.id|stringformat:"s" == selected_department %}selected{% endif %}>
+                            {{ dept.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="flex flex-col">
+                    <label class="text-xs font-medium text-slate-500 mb-1">Проживающий</label>
+                    <select id="recipientSelect"
+                            class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 min-w-[200px]">
+                        <option value="">Выберите...</option>
+                        {% for recipient in recipients %}
+                        <option value="{{ recipient.id }}" 
+                                {% if recipient.id == selected_recipient.id %}selected{% endif %}>
+                            {{ recipient.full_name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% if selected_recipient %}
+    <!-- Resident Card -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mx-4 mb-4">
+        <div class="flex items-start gap-4">
+            <!-- Аватар получателя -->
+            {% if selected_recipient.photo %}
+            <div class="w-20 h-20 flex-shrink-0">
+                <img src="{{ selected_recipient.photo.url }}" 
+                     alt="{{ selected_recipient.full_name }}"
+                     class="w-20 h-20 rounded-full object-cover shadow-sm border-2 border-white">
+            </div>
+            {% else %}
+            <div class="w-20 h-20 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center text-white text-2xl font-semibold shadow-sm flex-shrink-0">
+                {{ selected_recipient.full_name|slice:":1" }}
+            </div>
+            {% endif %}
+            <div class="flex-1">
+                <!-- ФИО с возрастом и статусом -->
+                <div class="flex items-center gap-2 flex-wrap">
+                    <h2 class="text-lg font-semibold text-slate-800">{{ selected_recipient.full_name }}</h2>
+                    {% if selected_recipient.age %}
+                    <span class="text-slate-500 text-sm">({{ selected_recipient.age }} лет)</span>
+                    {% endif %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                        {% if selected_recipient.status == 'active' %}bg-green-100 text-green-800
+                        {% elif selected_recipient.status == 'vacation' %}bg-yellow-100 text-yellow-800
+                        {% elif selected_recipient.status == 'hospital' %}bg-blue-100 text-blue-800
+                        {% else %}bg-red-100 text-red-800{% endif %}">
+                        {{ selected_recipient.get_status_display }}
+                    </span>
+                </div>
+                <!-- Дополнительная информация под ФИО и кнопки справа -->
+                <div class="flex items-center justify-between gap-4 mt-1">
+                    <div class="flex items-center gap-4 text-sm text-slate-500">
+                        <span>Дата рождения: {{ selected_recipient.birth_date|date:"d.m.Y" }}</span>
+                        {% if selected_recipient.department %}
+                        <span>Отделение: {{ selected_recipient.department.name }}</span>
+                        {% endif %}
+                        {% if selected_recipient.room %}
+                        <span>Комната: {{ selected_recipient.room }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="flex items-center gap-2 no-print flex-shrink-0">
+                        <a href="{% url 'recipients:detail' selected_recipient.id %}" 
+                           class="inline-flex items-center px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg transition-colors">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                            </svg>
+                            Профиль
+                        </a>
+                        <a href="{% url 'services:tabel' %}?year={{ year }}&month={{ month_index }}&recipient={{ selected_recipient.id }}" 
+                           class="inline-flex items-center px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-medium rounded-lg transition-colors">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/>
+                            </svg>
+                            Табель
+                        </a>
+                        <a href="{% url 'recipients:contract' selected_recipient.id %}" 
+                           class="inline-flex items-center px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white text-sm font-medium rounded-lg transition-colors">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                            ИППСУ
+                        </a>
+                        <a href="{% url 'reports:print_act' selected_recipient.id year month %}{% if income %}?income={{ income }}{% endif %}{% if pension_payment %}{% if income %}&{% else %}?{% endif %}pension={{ pension_payment }}{% endif %}" 
+                           target="_blank"
+                           class="inline-flex items-center px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium rounded-lg transition-colors">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                            </svg>
+                            Печать
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Summary Section -->
+    <div class="px-4 mb-4">
+        <div class="summary-card rounded-xl shadow-sm overflow-hidden">
+            <div class="bg-slate-100 px-4 py-3 border-b border-slate-200">
+                <h3 class="text-lg font-semibold text-slate-800">
+                    Расчёт стоимости услуг за {{ month_name }} {{ year }}
+                </h3>
+            </div>
+            
+            <!-- Поля для ввода -->
+            <div class="grid grid-cols-2 gap-0 border-b border-slate-200">
+                <div class="summary-row border-r border-slate-200">
+                    <div class="flex items-center gap-2">
+                        <label class="text-sm text-slate-600 whitespace-nowrap">Среднедушевой доход:</label>
+                        <input type="number" id="incomeInput" step="0.01" min="0" 
+                               value="{% if monthly_data.income %}{{ monthly_data.income }}{% endif %}"
+                               data-saved="{% if monthly_data.income %}{{ monthly_data.income }}{% endif %}"
+                               onchange="onIncomePensionChange()"
+                               class="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 w-32 text-right"
+                               placeholder="0.00">
+                        <span class="text-slate-500 text-sm">руб.</span>
+                    </div>
+                </div>
+                <div class="summary-row">
+                    <div class="flex items-center gap-2">
+                        <label class="text-sm text-slate-600 whitespace-nowrap">Перечислено ПФ:</label>
+                        <input type="number" id="pensionInput" step="0.01" min="0" 
+                               value="{% if monthly_data.pension_payment %}{{ monthly_data.pension_payment }}{% endif %}"
+                               data-saved="{% if monthly_data.pension_payment %}{{ monthly_data.pension_payment }}{% endif %}"
+                               onchange="onIncomePensionChange()"
+                               class="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 w-32 text-right"
+                               placeholder="0.00">
+                        <span class="text-slate-500 text-sm">руб.</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Отображение расчётов -->
+            <div class="summary-row">
+                <span class="summary-label">Размер среднедушевого дохода получателя социальных услуг:</span>
+                <div class="flex items-center gap-2">
+                    <span class="summary-value">{{ income_value|floatformat:2 }}</span>
+                    <span class="text-slate-500 text-sm">руб.</span>
+                </div>
+            </div>
+            <div class="summary-row">
+                <span class="summary-label">Ограничение 75% от среднедушевого дохода:</span>
+                <div class="flex items-center gap-2">
+                    <span class="summary-value">{{ limit_75|floatformat:2 }}</span>
+                    <span class="text-slate-500 text-sm">руб.</span>
+                </div>
+            </div>
+            <div class="summary-row">
+                <span class="summary-label">Фактически перечислено Пенсионным фондом в ДСО:</span>
+                <div class="flex items-center gap-2">
+                    <span class="summary-value">{{ pension_value|floatformat:2 }}</span>
+                    <span class="text-slate-500 text-sm">руб.</span>
+                </div>
+            </div>
+            <div class="summary-row">
+                <span class="summary-label">Сумма к оплате за социальные услуги:</span>
+                <div class="flex items-center gap-2">
+                    <span class="summary-value">{{ total_sum|floatformat:2 }}</span>
+                    <span class="text-slate-500 text-sm">руб.</span>
+                </div>
+            </div>
+            <div class="summary-row">
+                <span class="summary-label">Переплата/недоплата за социальные услуги:</span>
+                <div class="flex items-center gap-2">
+                    <span class="summary-value {% if difference > 0 %}positive{% elif difference < 0 %}negative{% endif %}">
+                        {{ difference|floatformat:2 }}
+                    </span>
+                    <span class="text-slate-500 text-sm">руб.</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Services Table -->
+    <div class="px-4">
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="act-table">
+                    <thead>
+                        <tr>
+                            <th class="col-num">№</th>
+                            <th class="col-name">Наименование социальной услуги</th>
+                            <th class="col-price">Цена, руб.</th>
+                            <th class="col-qty">Кол-во</th>
+                            <th class="col-sum">Сумма, руб.</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cat_item in categories_with_services %}
+                        <tr class="category-row">
+                            <td colspan="5">{{ cat_item.category.name }}:</td>
+                        </tr>
+                        {% for item in cat_item.services %}
+                        <tr class="hover:bg-slate-50 transition-colors">
+                            <td class="col-num">{{ item.row_number }}</td>
+                            <td class="col-name">{{ item.service.name }}</td>
+                            <td class="col-price">{{ item.price|floatformat:2 }}</td>
+                            <td class="col-qty">{% if item.quantity > 0 %}{{ item.quantity }}{% endif %}</td>
+                            <td class="col-sum">{{ item.total|floatformat:2 }}</td>
+                        </tr>
+                        {% endfor %}
+                        <tr class="subtotal-row">
+                            <td colspan="4" style="text-align: right; padding-right: 12px;">Итого:</td>
+                            <td class="col-sum">{{ cat_item.services|category_total }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center py-12 text-slate-500">
+                                Нет услуг в ИППСУ или нет оказанных услуг за выбранный период
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        
+                        {% if categories_with_services %}
+                        <tr class="total-row">
+                            <td colspan="4" style="text-align: right; padding-right: 12px;">
+                                Всего стоимость социальных услуг за месяц:
+                            </td>
+                            <td class="col-sum">{{ total_sum|floatformat:2 }}</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- Empty State -->
+    <div class="px-4 py-12">
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-12">
+            <div class="flex flex-col items-center text-center">
+                <svg class="w-16 h-16 text-slate-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                <p class="text-slate-500 font-medium">Выберите получателя услуг</p>
+                <p class="text-slate-400 text-sm mt-1">Используйте фильтры выше для формирования акта</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    // Флаг для отслеживания источника изменения
+    let isIncomePensionChange = false;
+    
+    function applyFilters() {
+        const year = document.getElementById('yearSelect').value;
+        const month = document.getElementById('monthSelect').value;
+        const department = document.getElementById('departmentSelect').value;
+        const recipient = document.getElementById('recipientSelect').value;
+        
+        let url = `/reports/act/?year=${year}&month=${parseInt(month) + 1}`;
+        if (department) url += `&department=${department}`;
+        if (recipient) url += `&recipient=${recipient}`;
+        
+        // Передаём income и pension только если изменение пришло из полей ввода
+        if (isIncomePensionChange) {
+            const incomeEl = document.getElementById('incomeInput');
+            const pensionEl = document.getElementById('pensionInput');
+            
+            // Берём текущее значение из поля, если пусто - берём из data-saved
+            let income = incomeEl ? incomeEl.value : '';
+            let pension = pensionEl ? pensionEl.value : '';
+            
+            // Если поле пустое, берём сохранённое значение
+            if (!income && incomeEl && incomeEl.dataset.saved) {
+                income = incomeEl.dataset.saved;
+            }
+            if (!pension && pensionEl && pensionEl.dataset.saved) {
+                pension = pensionEl.dataset.saved;
+            }
+            
+            // Передаём оба значения
+            if (income) url += `&income=${income}`;
+            if (pension) url += `&pension=${pension}`;
+        }
+        
+        window.location.href = url;
+    }
+    
+    function onIncomePensionChange() {
+        isIncomePensionChange = true;
+        applyFilters();
+    }
+    
+    // Обработчики для селектов - сбрасываем флаг
+    document.addEventListener('DOMContentLoaded', function() {
+        var yearSelect = document.getElementById('yearSelect');
+        var monthSelect = document.getElementById('monthSelect');
+        var departmentSelect = document.getElementById('departmentSelect');
+        var recipientSelect = document.getElementById('recipientSelect');
+        
+        if (yearSelect) {
+            yearSelect.addEventListener('change', function() {
+                isIncomePensionChange = false;
+                applyFilters();
+            });
+        }
+        if (monthSelect) {
+            monthSelect.addEventListener('change', function() {
+                isIncomePensionChange = false;
+                applyFilters();
+            });
+        }
+        if (departmentSelect) {
+            departmentSelect.addEventListener('change', function() {
+                isIncomePensionChange = false;
+                applyFilters();
+            });
+        }
+        if (recipientSelect) {
+            recipientSelect.addEventListener('change', function() {
+                isIncomePensionChange = false;
+                applyFilters();
+            });
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,209 @@
+{% load service_tags %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Табель учета социальных услуг - Печать</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Times New Roman', serif; font-size: 10pt; padding: 5mm; }
+        h1 { text-align: center; font-size: 12pt; margin-bottom: 3mm; width: 282mm; }
+        .header-info { text-align: left; margin-bottom: 3mm; font-size: 10pt; width: 282mm; }
+        
+        /* Основная таблица: ширина 282мм */
+        table { 
+            width: 282mm; 
+            border-collapse: collapse; 
+            font-size: 8pt; 
+            table-layout: fixed;
+        }
+        
+        th, td { 
+            border: 1px solid black; 
+            padding: 0; 
+            text-align: center; 
+            vertical-align: middle; 
+        }
+        
+        th { background-color: #ddd; font-weight: bold; }
+        
+        /* Столбец номер: ширина 5мм */
+        .service-number { 
+            width: 5mm; 
+            font-weight: bold; 
+            font-size: 7pt;
+        }
+        
+        /* Ячейки даты: ширина 5мм */
+        .day-header, .day-cell {
+            width: 5mm;
+            min-width: 5mm;
+            max-width: 5mm;
+            font-size: 7pt;
+        }
+        
+        /* Столбец с наименованием услуги: всё что осталось, минимум 100мм */
+        .service-name { 
+            text-align: left; 
+            padding-left: 1mm; 
+            min-width: 100mm;
+            font-size: 7pt;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: clip;
+        }
+        
+        /* Столбец Итог */
+        .total-header, .total-cell {
+            width: 8mm;
+            font-size: 7pt;
+        }
+        
+        /* Высота строчек под наименование услуг: 3мм, текст по центру */
+        .category-row { 
+            background-color: #ccc; 
+            font-weight: bold;
+            height: 3mm;
+            max-height: 3mm;
+            line-height: 3mm;
+            font-size: 7pt;
+        }
+        .category-row td { 
+            text-align: center; 
+            padding-left: 0;
+            height: 3mm;
+            max-height: 3mm;
+            line-height: 3mm;
+            overflow: hidden;
+        }
+        
+        /* Высота строчек под услуги: жёстко не более 5мм */
+        .service-row {
+            height: 5mm;
+            max-height: 5mm;
+            line-height: 5mm;
+        }
+        .service-row td {
+            height: 5mm;
+            max-height: 5mm;
+            line-height: 5mm;
+            overflow: hidden;
+        }
+        
+        .sub-service .service-name { padding-left: 3mm; font-style: italic; }
+        
+        .total-cell { background-color: #eee; font-weight: bold; }
+        
+        /* Строки подписей: ФИО младшая м/с и ФИО палатная м/с - 22мм */
+        .signature-row-nurse { 
+            height: 22mm;
+            min-height: 22mm;
+            max-height: 22mm;
+        }
+        .signature-row-nurse td { 
+            text-align: left; 
+            padding: 1mm; 
+            background-color: #f5f5f5; 
+            vertical-align: top; 
+            font-size: 7pt;
+            height: 22mm;
+        }
+        
+        /* Остальные строки подписей */
+        .signature-row td { 
+            text-align: left; 
+            padding: 1mm; 
+            background-color: #f5f5f5; 
+            vertical-align: top; 
+            font-size: 7pt;
+        }
+        
+        .day-cell-1 { background-color: #92D050; }
+        .day-cell-2 { background-color: #00B050; color: white; }
+        .day-cell-3 { background-color: #0070C0; color: white; }
+        .day-cell-4 { background-color: #7030A0; color: white; }
+        
+        @page { 
+            size: A4 landscape; 
+            margin: 5mm; 
+        }
+        @media print { 
+            body { padding: 0; }
+            table { width: 282mm; }
+        }
+    </style>
+</head>
+<body>
+    <h1>Табель учета социальных услуг</h1>
+    <div class="header-info">
+        {{ recipient.full_name }}, дата рождения: {{ recipient.birth_date|date:"d.m.Y" }}, месяц: {{ month_name }}, год: {{ year }}, отделение: {{ recipient.department.name }}
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th class="service-number">№</th>
+                <th class="service-name">Наименование услуги</th>
+                {% for day in days_in_month|get_range %}
+                <th class="day-header">{{ day }}</th>
+                {% endfor %}
+                <th class="total-header">Итог</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in categories_with_services %}
+            <tr class="category-row">
+                <td colspan="{{ days_in_month|add:3 }}">{{ item.category.name }}</td>
+            </tr>
+            
+            {% for service in item.services %}
+            <tr class="service-row {% if service.parent %}sub-service{% endif %}">
+                <td class="service-number">{{ service.code }}</td>
+                <td class="service-name">{{ service.name }}</td>
+                
+                {% for day in days_in_month|get_range %}
+                {% with service_data=service_logs|get_item:service.id %}
+                {% with count=service_data|get_item:day %}
+                <td class="day-cell {% if count > 0 %}day-cell-{{ count }}{% endif %}">
+                    {% if count > 0 %}{{ count }}{% endif %}
+                </td>
+                {% endwith %}
+                {% endwith %}
+                {% endfor %}
+                
+                <td class="total-cell">{{ service_totals|get_item:service.id|default:0 }}</td>
+            </tr>
+            {% endfor %}
+            {% endfor %}
+            
+            <tr class="signature-row-nurse">
+                <td colspan="2">ФИО младшая м/с</td>
+                {% for i in days_in_month|get_range_range %}
+                <td></td>
+                {% endfor %}
+                <td></td>
+            </tr>
+            <tr class="signature-row-nurse">
+                <td colspan="2">ФИО палатная м/с</td>
+                {% for i in days_in_month|get_range_range %}
+                <td></td>
+                {% endfor %}
+                <td></td>
+            </tr>
+            <tr class="signature-row">
+                <td colspan="2">Психолог<br>Культорганизатор<br>Инструктор по адаптивной физкультуре<br>Инструктор по труду<br>Юрисконсульт<br>Специалист по социальной работе</td>
+                {% for i in days_in_month|get_range_range %}
+                <td></td>
+                {% endfor %}
+                <td></td>
+            </tr>
+        </tbody>
+    </table>
+    <div style="margin-top: 3mm; font-size: 9pt;">Проверил _________________________________</div>
+    
+    <script>
+        window.onload = function() {
+            window.print();
+        };
+    </script>
+</body>
+</html>

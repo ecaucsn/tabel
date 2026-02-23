@@ -1,0 +1,19 @@
+# Django
+Django>=5.0,<6.0
+psycopg2-binary>=2.9.0
+django-htmx>=1.17.0
+
+# Static files serving (production)
+whitenoise>=6.6.0
+
+# PDF generation
+weasyprint>=60.0
+
+# Image processing
+Pillow>=10.0.0
+
+# Additional
+python-dateutil>=2.8.0
+
+# WSGI server (production)
+gunicorn>=21.0.0

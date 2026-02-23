@@ -1,0 +1,1045 @@
+{% extends 'base.html' %}
+{% load service_tags %}
+
+{% block title %}Табель учета услуг{% endblock %}
+
+{% block main_container_class %}w-full px-4 sm:px-6 lg:px-8 py-6{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Page Layout */
+    .tabel-page {
+        margin: 0;
+        padding: 0;
+        min-height: 100vh;
+    }
+    
+    /* Header sections - fixed height */
+    .tabel-header {
+        flex-shrink: 0;
+    }
+    
+    /* Table container - fills remaining space */
+    .table-wrapper {
+        padding: 0 1.5rem;
+    }
+    
+    /* Table Styles */
+    .tabel-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        font-size: 12px;
+    }
+    
+    .tabel-table th, .tabel-table td {
+        border: 1px solid #e2e8f0;
+        padding: 6px 8px;
+        text-align: center;
+        vertical-align: middle;
+    }
+    
+    .tabel-table th {
+        background: #f8fafc;
+        color: #475569;
+        font-weight: 600;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        position: sticky;
+        top: 0;
+        z-index: 20;
+    }
+    
+    .tabel-table th.bg-primary {
+        background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+        color: white;
+    }
+    
+    /* Day header - clickable */
+    .day-header {
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+    
+    .day-header:hover {
+        background: #fbbf24 !important;
+        color: #78350f !important;
+        transform: scale(1.1);
+    }
+    
+    /* Weekend/Holiday header */
+    .weekend-header {
+        background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%) !important;
+        color: #991b1b !important;
+    }
+    
+    /* Weekend/Holiday cell - pale background */
+    .weekend-cell {
+        background: #ffe3e3 !important;
+    }
+    
+    .weekend-cell.count-0 { background: #ffe3e3 !important; color: #ffe3e3; }
+    .weekend-cell.count-1 { background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%) !important; color: white; }
+    .weekend-cell.count-2 { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important; color: white; }
+    .weekend-cell.count-3 { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%) !important; color: white; }
+    .weekend-cell.count-4 { background: linear-gradient(135deg, #ec4899 0%, #db2777 100%) !important; color: white; }
+    
+    /* Sticky Columns */
+    .service-number {
+        width: 35px;
+        font-weight: 600;
+        color: #64748b;
+        background: #f8fafc;
+        position: sticky;
+        left: 0;
+        z-index: 15;
+    }
+    
+    .service-name {
+        min-width: 350px;
+        max-width: 450px;
+        text-align: left !important;
+        background: #f8fafc;
+        position: sticky;
+        left: 35px;
+        z-index: 15;
+        font-weight: 500;
+        color: #334155;
+    }
+    
+    .service-name-clickable {
+        cursor: pointer;
+        transition: background 0.15s ease;
+    }
+    
+    .service-name-clickable:hover {
+        background: #e2e8f0 !important;
+    }
+    
+    th.service-number-header {
+        position: sticky;
+        left: 0;
+        z-index: 25;
+        width: 35px;
+    }
+    
+    th.service-name-header {
+        position: sticky;
+        left: 35px;
+        z-index: 25;
+    }
+    
+    /* Category Row */
+    .category-row {
+        background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%) !important;
+    }
+    
+    .category-row td {
+        padding: 10px 12px;
+        font-weight: 600;
+        color: #1e40af;
+        text-align: center;
+        font-size: 13px;
+    }
+    
+    /* Day Cells */
+    .day-cell {
+        width: 32px;
+        height: 32px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 12px;
+        border-radius: 6px;
+        transition: all 0.15s ease;
+        background: #f8fafc;
+        color: #94a3b8;
+    }
+    
+    .day-cell:hover {
+        transform: scale(1.1);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 10;
+        position: relative;
+    }
+    
+    .day-cell.count-0 { background: #f1f5f9; color: #f1f5f9; }
+    .day-cell.count-1 { background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); color: white; }
+    .day-cell.count-2 { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; }
+    .day-cell.count-3 { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: white; }
+    .day-cell.count-4 { background: linear-gradient(135deg, #ec4899 0%, #db2777 100%); color: white; }
+    
+    .day-cell.weekend { background: #fef2f2 !important; }
+    .day-cell.weekend.count-0 { background: #fef2f2 !important; color: #fef2f2; }
+    .day-cell.weekend.count-1 { background: linear-gradient(135deg, #f87171 0%, #ef4444 100%) !important; }
+    .day-cell.weekend.count-2 { background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important; }
+    
+    /* Total Cell */
+    .total-cell {
+        background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+        font-weight: 700;
+        color: #78350f;
+        min-width: 40px;
+        max-width: 50px;
+    }
+    
+    /* Sub-service - убрано выделение */
+    .sub-service .service-name {
+        /* без дополнительных стилей */
+    }
+    
+    /* Signature Row */
+    .signature-row td {
+        background: #f8fafc;
+        padding: 12px;
+        text-align: left;
+        font-size: 12px;
+        color: #64748b;
+    }
+    
+    /* Scrollable Container */
+    .table-container {
+        overflow-x: auto;
+        overflow-y: auto;
+        max-height: calc(100vh - 280px);
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        background: white;
+    }
+    
+    /* Legend */
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        color: #64748b;
+    }
+    
+    .legend-color {
+        width: 20px;
+        height: 20px;
+        border-radius: 4px;
+    }
+    
+    /* Print Styles */
+    @media print {
+        .no-print { display: none !important; }
+        .tabel-page { margin: 0; padding: 0; }
+        .table-container { max-height: none; border: none; }
+        .tabel-table { font-size: 9px; }
+        .day-cell { width: 18px; height: 18px; font-size: 8px; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{% csrf_token %}
+<div class="tabel-page">
+    <!-- Header Section -->
+    <div class="tabel-header bg-white rounded-xl shadow-sm border border-slate-200 p-6 m-4 mb-4">
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <!-- Title with back button -->
+            <div class="flex items-center gap-4">
+                <a href="{% url 'dashboard' %}" class="p-2 hover:bg-slate-100 rounded-lg transition-colors" title="На главную">
+                    <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                    </svg>
+                </a>
+                <div>
+                    <h1 class="text-xl font-semibold text-slate-800">Табель учета социальных услуг</h1>
+                    <p class="text-sm text-slate-500 mt-1">Выберите период и проживающего для заполнения табеля</p>
+                </div>
+            </div>
+            
+            <!-- Filters -->
+            <div class="flex flex-wrap items-center gap-3">
+                <div class="flex flex-col">
+                    <label class="text-xs font-medium text-slate-500 mb-1">Год</label>
+                    <select id="yearSelect" onchange="applyFilters()" 
+                            class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                        {% for y in years %}
+                        <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="flex flex-col">
+                    <label class="text-xs font-medium text-slate-500 mb-1">Месяц</label>
+                    <select id="monthSelect" onchange="applyFilters()"
+                            class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                        {% for m, m_name in months %}
+                        <option value="{{ m }}" {% if m == month %}selected{% endif %}>{{ m_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="flex flex-col">
+                    <label class="text-xs font-medium text-slate-500 mb-1">Отделение</label>
+                    <select id="departmentSelect" onchange="applyFilters()"
+                            class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 min-w-[150px]">
+                        <option value="">Все отделения</option>
+                        {% for dept in departments %}
+                        <option value="{{ dept.id }}" {% if dept.id|stringformat:"s" == selected_department %}selected{% endif %}>
+                            {{ dept.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="flex flex-col">
+                    <label class="text-xs font-medium text-slate-500 mb-1">Проживающий</label>
+                    <select id="recipientSelect" onchange="applyFilters()"
+                            class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 min-w-[200px]">
+                        <option value="">Выберите...</option>
+                        {% for recipient in recipients %}
+                        <option value="{{ recipient.id }}" 
+                                {% if recipient.id == selected_recipient.id %}selected{% endif %}>
+                            {{ recipient.full_name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% if selected_recipient %}
+    <!-- Resident Card -->
+    <div class="tabel-header bg-white rounded-xl shadow-sm border border-slate-200 p-4 mx-4 mb-4">
+        <div class="flex items-start gap-4">
+            <!-- Аватар получателя -->
+            {% if selected_recipient.photo %}
+            <div class="w-20 h-20 flex-shrink-0">
+                <img src="{{ selected_recipient.photo.url }}" 
+                     alt="{{ selected_recipient.full_name }}"
+                     class="w-20 h-20 rounded-full object-cover shadow-sm border-2 border-white">
+            </div>
+            {% else %}
+            <div class="w-20 h-20 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center text-white text-2xl font-semibold shadow-sm flex-shrink-0">
+                {{ selected_recipient.full_name|slice:":1" }}
+            </div>
+            {% endif %}
+            <div class="flex-1">
+                <!-- ФИО с возрастом и статусом -->
+                <div class="flex items-center gap-2 flex-wrap">
+                    <h2 class="text-lg font-semibold text-slate-800">{{ selected_recipient.full_name }}</h2>
+                    {% if selected_recipient.age %}
+                    <span class="text-slate-500 text-sm">({{ selected_recipient.age }} лет)</span>
+                    {% endif %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                        {% if selected_recipient.status == 'active' %}bg-green-100 text-green-800
+                        {% elif selected_recipient.status == 'vacation' %}bg-yellow-100 text-yellow-800
+                        {% elif selected_recipient.status == 'hospital' %}bg-blue-100 text-blue-800
+                        {% else %}bg-red-100 text-red-800{% endif %}">
+                        {{ selected_recipient.get_status_display }}
+                    </span>
+                </div>
+                <!-- Дополнительная информация под ФИО и кнопки справа -->
+                <div class="flex items-center justify-between gap-4 mt-1">
+                    <div class="flex items-center gap-4 text-sm text-slate-500">
+                        <span>Дата рождения: {{ selected_recipient.birth_date|date:"d.m.Y" }}</span>
+                        {% if selected_recipient.department %}
+                        <span>Отделение: {{ selected_recipient.department.name }}</span>
+                        {% endif %}
+                        {% if selected_recipient.room %}
+                        <span>Комната: {{ selected_recipient.room }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="flex items-center gap-2 no-print flex-shrink-0">
+                        <a href="{% url 'recipients:detail' selected_recipient.id %}" 
+                           class="inline-flex items-center px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg transition-colors">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                            </svg>
+                            Профиль
+                        </a>
+                        <a href="{% url 'reports:act_generator' %}?year={{ year }}&month={{ month|add:1 }}&recipient={{ selected_recipient.id }}" 
+                           class="inline-flex items-center px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-medium rounded-lg transition-colors">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                            Акт
+                        </a>
+                        <a href="{% url 'recipients:contract' selected_recipient.id %}" 
+                           class="inline-flex items-center px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white text-sm font-medium rounded-lg transition-colors">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                            ИППСУ
+                        </a>
+                    </div>
+                </div>
+                <!-- Нижний ряд кнопок: Очистить, Автозаполнение, Печать -->
+                <div class="flex items-center justify-end gap-2 mt-2 no-print">
+                    <button type="button" 
+                            id="lock-btn"
+                            onclick="toggleLock()"
+                            class="inline-flex items-center px-4 py-2 {% if is_locked %}bg-green-500 hover:bg-green-600{% else %}bg-slate-500 hover:bg-slate-600{% endif %} text-white text-sm font-medium rounded-lg transition-colors">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            {% if is_locked %}
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/>
+                            {% else %}
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                            {% endif %}
+                        </svg>
+                        <span id="lock-btn-text">{% if is_locked %}Разблокировать{% else %}Заблокировать{% endif %}</span>
+                    </button>
+                    <button type="button" 
+                            onclick="clearAllServices()"
+                            class="inline-flex items-center px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                        Очистить
+                    </button>
+                    <button type="button" 
+                            id="autofill-btn"
+                            class="inline-flex items-center px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-lg transition-colors">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                        Автозаполнение
+                    </button>
+                    <a href="{% url 'services:tabel_print' %}?recipient={{ selected_recipient.id }}&year={{ year }}&month={{ month }}" 
+                       target="_blank"
+                       class="inline-flex items-center px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium rounded-lg transition-colors">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                        </svg>
+                        Печать
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Table Section -->
+    <div class="table-wrapper">
+        <div class="table-container">
+            <table class="tabel-table">
+                <thead>
+                    <tr>
+                        <th class="service-number-header bg-primary">№</th>
+                        <th class="service-name-header bg-primary">Наименование услуги</th>
+                        {% for day in days_in_month|get_range %}
+                        <th class="day-header {% if day in weekends or day in holiday_days %}weekend-header{% endif %}" 
+                            data-day="{{ day }}"
+                            title="Клик — очистить столбец">{{ day }}</th>
+                        {% endfor %}
+                        <th class="day-header bg-primary" title="Клик — очистить всю таблицу" onclick="clearAllServices()">Ит</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if selected_recipient %}
+                        {% for item in categories_with_services %}
+                        <tr class="category-row">
+                            <td colspan="{{ days_in_month|add:3 }}">{{ item.category.name }}</td>
+                        </tr>
+                        
+                            {% for service in item.services %}
+                            <tr class="{% if service.parent %}sub-service{% endif %}" data-service-id="{{ service.id }}">
+                                <td class="service-number">{{ service.code }}</td>
+                                <td class="service-name service-name-clickable" data-service="{{ service.id }}" 
+                                    title="Левый клик — заполнить строку, правый — сбросить">
+                                    {{ service.name }}
+                                    {% if service.max_quantity_per_month %}
+                                    <span class="ml-2 text-xs text-amber-600 font-normal" title="Ограничение в месяц">
+                                        (макс. {{ service.max_quantity_per_month }})
+                                    </span>
+                                    {% endif %}
+                                </td>
+                                
+                                {% for day in days_in_month|get_range %}
+                                <td class="day-cell count-0 {% if day in weekends or day in holiday_days %}weekend-cell{% endif %}" 
+                                    id="cell-{{ service.id }}-{{ day }}"
+                                    data-service="{{ service.id }}" 
+                                    data-day="{{ day }}"
+                                    {% if service.max_quantity_per_month %}data-max="{{ service.max_quantity_per_month }}"{% endif %}>
+                                </td>
+                                {% endfor %}
+                                
+                                <td class="total-cell" id="total-{{ service.id }}">
+                                    0
+                                    {% if service.max_quantity_per_month %}
+                                    <span class="text-xs opacity-60">/{{ service.max_quantity_per_month }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% empty %}
+                        <tr>
+                            <td colspan="{{ days_in_month|add:3 }}" class="text-center py-12">
+                                <div class="flex flex-col items-center">
+                                    <svg class="w-12 h-12 text-slate-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                                    </svg>
+                                    <p class="text-slate-500 font-medium">У проживающего нет назначенных услуг</p>
+                                    <a href="/admin/recipients/contract/" class="mt-2 text-primary-600 hover:text-primary-700 text-sm font-medium">
+                                        Добавить ИППСУ →
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                    <tr>
+                        <td colspan="{{ days_in_month|add:3 }}" class="text-center py-16">
+                            <div class="flex flex-col items-center">
+                                <svg class="w-16 h-16 text-slate-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                                </svg>
+                                <p class="text-slate-500 font-medium">Выберите проживающего</p>
+                                <p class="text-slate-400 text-sm mt-1">Используйте фильтры выше для выбора отделения и проживающего</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // CSRF token for Django
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                      getCookie('csrftoken');
+    
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    
+    // Pass Django variables to JavaScript
+    const currentRecipient = {{ selected_recipient.id|default:"null" }};
+    const currentYear = {{ year }};
+    const currentMonth = {{ month }};
+    const serviceLogs = {{ service_logs|safe }};
+    const serviceLimits = {{ service_limits|safe }};
+    let isLocked = {{ is_locked|yesno:"true,false" }};
+    
+    // Initialize cells with existing data
+    document.addEventListener('DOMContentLoaded', function() {
+        // Apply lock state on load
+        if (isLocked) {
+            applyLockState();
+        }
+        
+        // Load existing service logs
+        for (const key in serviceLogs) {
+            const [serviceId, day] = key.split('-');
+            const count = serviceLogs[key];
+            const cell = document.getElementById(`cell-${serviceId}-${day}`);
+            if (cell && count > 0) {
+                updateCellDisplay(cell, count);
+                updateTotal(serviceId);
+            }
+        }
+        
+        // Add click handlers for day cells
+        document.querySelectorAll('.day-cell').forEach(cell => {
+            cell.addEventListener('click', handleCellClick);
+            cell.addEventListener('contextmenu', handleCellRightClick);
+        });
+        
+        // Add click handlers for service name (fill/reset row)
+        document.querySelectorAll('.service-name-clickable').forEach(cell => {
+            cell.addEventListener('click', handleServiceNameClick);
+            cell.addEventListener('contextmenu', handleServiceNameRightClick);
+        });
+        
+        // Add click handlers for day headers (clear column)
+        document.querySelectorAll('.day-header').forEach(header => {
+            header.addEventListener('click', handleDayHeaderClick);
+        });
+    });
+    
+    // Apply visual lock state
+    function applyLockState() {
+        const cells = document.querySelectorAll('.day-cell');
+        cells.forEach(cell => {
+            if (isLocked) {
+                cell.style.pointerEvents = 'none';
+                cell.style.opacity = '0.6';
+            } else {
+                cell.style.pointerEvents = 'auto';
+                cell.style.opacity = '1';
+            }
+        });
+        
+        // Also disable service name clicks
+        const serviceNames = document.querySelectorAll('.service-name-clickable');
+        serviceNames.forEach(name => {
+            if (isLocked) {
+                name.style.pointerEvents = 'none';
+                name.style.opacity = '0.6';
+            } else {
+                name.style.pointerEvents = 'auto';
+                name.style.opacity = '1';
+            }
+        });
+        
+        // Disable day headers
+        const dayHeaders = document.querySelectorAll('.day-header');
+        dayHeaders.forEach(header => {
+            if (isLocked) {
+                header.style.pointerEvents = 'none';
+            } else {
+                header.style.pointerEvents = 'auto';
+            }
+        });
+        
+        // Disable autofill and clear buttons
+        const autofillBtn = document.getElementById('autofill-btn');
+        if (autofillBtn) {
+            autofillBtn.disabled = isLocked;
+            autofillBtn.style.opacity = isLocked ? '0.5' : '1';
+        }
+    }
+    
+    // Toggle lock state
+    async function toggleLock() {
+        if (!currentRecipient) return;
+        
+        try {
+            const response = await fetch('/services/api/toggle-lock/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken
+                },
+                body: JSON.stringify({
+                    recipient_id: currentRecipient,
+                    year: currentYear,
+                    month: currentMonth + 1  // Convert 0-indexed to 1-indexed
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                isLocked = data.is_locked;
+                
+                // Update button appearance
+                const lockBtn = document.getElementById('lock-btn');
+                const lockBtnText = document.getElementById('lock-btn-text');
+                
+                if (isLocked) {
+                    lockBtn.classList.remove('bg-slate-500', 'hover:bg-slate-600');
+                    lockBtn.classList.add('bg-green-500', 'hover:bg-green-600');
+                    lockBtnText.textContent = 'Разблокировать';
+                } else {
+                    lockBtn.classList.remove('bg-green-500', 'hover:bg-green-600');
+                    lockBtn.classList.add('bg-slate-500', 'hover:bg-slate-600');
+                    lockBtnText.textContent = 'Заблокировать';
+                }
+                
+                // Apply visual changes
+                applyLockState();
+                
+                // Show notification
+                showNotification(data.message, 'success');
+            } else {
+                showNotification(data.error || 'Ошибка при изменении блокировки', 'error');
+            }
+        } catch (error) {
+            console.error('Error toggling lock:', error);
+            showNotification('Ошибка соединения', 'error');
+        }
+    }
+    
+    // Show notification
+    function showNotification(message, type) {
+        const notification = document.createElement('div');
+        notification.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 ${
+            type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+        }`;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.remove();
+        }, 3000);
+    }
+    
+    // Clear entire column
+    async function handleDayHeaderClick(e) {
+        const day = e.target.dataset.day;
+        if (!day || !currentRecipient) return;
+        
+        // Get all cells for this day
+        const cells = document.querySelectorAll(`[data-day="${day}"].day-cell`);
+        
+        // Update UI immediately
+        cells.forEach(cell => {
+            updateCellDisplay(cell, 0);
+        });
+        
+        // Update all totals
+        const serviceIds = new Set();
+        cells.forEach(cell => {
+            serviceIds.add(cell.dataset.service);
+        });
+        serviceIds.forEach(serviceId => updateTotal(serviceId));
+        
+        // Send batch request to clear all services for this day
+        const serviceIdsList = Array.from(serviceIds);
+        await clearDayServices(day, serviceIdsList);
+    }
+    
+    // Clear all services for a specific day
+    async function clearDayServices(day, serviceIds) {
+        try {
+            const response = await fetch('/services/api/clear-day/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken
+                },
+                body: JSON.stringify({
+                    recipient_id: currentRecipient,
+                    year: currentYear,
+                    month: currentMonth + 1,
+                    day: parseInt(day),
+                    service_ids: serviceIds
+                })
+            });
+            
+            const result = await response.json();
+            if (!result.success) {
+                console.error('Error clearing day:', result.error);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    }
+    
+    // Fill entire row with 1 (send as batch)
+    async function handleServiceNameClick(e) {
+        e.preventDefault();
+        const serviceId = e.target.closest('.service-name-clickable').dataset.service;
+        const cells = document.querySelectorAll(`[data-service="${serviceId}"].day-cell`);
+        
+        // Update UI immediately
+        cells.forEach(cell => {
+            updateCellDisplay(cell, 1);
+        });
+        updateTotal(serviceId);
+        
+        // Send batch request
+        const days = Array.from(cells).map(cell => parseInt(cell.dataset.day));
+        await saveServiceLogBatch(serviceId, days, 1);
+    }
+    
+    // Reset entire row to 0 (send as batch)
+    async function handleServiceNameRightClick(e) {
+        e.preventDefault();
+        const serviceId = e.target.closest('.service-name-clickable').dataset.service;
+        const cells = document.querySelectorAll(`[data-service="${serviceId}"].day-cell`);
+        
+        // Update UI immediately
+        cells.forEach(cell => {
+            updateCellDisplay(cell, 0);
+        });
+        updateTotal(serviceId);
+        
+        // Send batch request
+        const days = Array.from(cells).map(cell => parseInt(cell.dataset.day));
+        await saveServiceLogBatch(serviceId, days, 0);
+    }
+    
+    // Batch save for entire row
+    async function saveServiceLogBatch(serviceId, days, count) {
+        const data = new FormData();
+        data.append('recipient_id', currentRecipient);
+        data.append('service_id', serviceId);
+        data.append('days', JSON.stringify(days));
+        data.append('month', currentMonth + 1);
+        data.append('year', currentYear);
+        data.append('quantity', count);
+        data.append('csrfmiddlewaretoken', csrftoken);
+        data.append('batch', 'true');
+        
+        try {
+            const response = await fetch('/services/api/service-log/', {
+                method: 'POST',
+                body: data,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': csrftoken
+                }
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Error saving service log batch:', error);
+            return { success: false };
+        }
+    }
+    
+    // Helper function for delay
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+    
+    // Async version of saveServiceLog
+    async function saveServiceLogAsync(serviceId, day, count) {
+        const data = new FormData();
+        data.append('recipient_id', currentRecipient);
+        data.append('service_id', serviceId);
+        data.append('day', day);
+        data.append('month', currentMonth + 1);
+        data.append('year', currentYear);
+        data.append('quantity', count);
+        data.append('csrfmiddlewaretoken', csrftoken);
+        
+        try {
+            const response = await fetch('/services/api/service-log/', {
+                method: 'POST',
+                body: data,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': csrftoken
+                }
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Error saving service log:', error);
+            return { success: false };
+        }
+    }
+    
+    function handleCellClick(e) {
+        e.preventDefault();
+        const cell = e.target;
+        const serviceId = cell.dataset.service;
+        const day = cell.dataset.day;
+        const maxCount = parseInt(cell.dataset.max) || 4;
+        
+        let currentCount = parseInt(cell.dataset.count) || 0;
+        currentCount = currentCount >= maxCount ? 0 : currentCount + 1;
+        
+        saveServiceLog(serviceId, day, currentCount, cell);
+    }
+    
+    function handleCellRightClick(e) {
+        e.preventDefault();
+        const cell = e.target;
+        const serviceId = cell.dataset.service;
+        const day = cell.dataset.day;
+        
+        saveServiceLog(serviceId, day, 0, cell);
+    }
+    
+    function saveServiceLog(serviceId, day, count, cell) {
+        const data = new FormData();
+        data.append('recipient_id', currentRecipient);
+        data.append('service_id', serviceId);
+        data.append('day', day);
+        data.append('month', currentMonth + 1);
+        data.append('year', currentYear);
+        data.append('quantity', count);
+        data.append('csrfmiddlewaretoken', csrftoken);
+        
+        fetch('/services/api/service-log/', {
+            method: 'POST',
+            body: data,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': csrftoken
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateCellDisplay(cell, count);
+                updateTotal(serviceId);
+            }
+        });
+    }
+    
+    function updateCellDisplay(cell, count) {
+        cell.dataset.count = count;
+        cell.textContent = count > 0 ? count : '';
+        // Сохраняем класс weekend-cell если он есть
+        const isWeekend = cell.classList.contains('weekend-cell');
+        cell.className = `day-cell count-${count}`;
+        if (isWeekend) {
+            cell.classList.add('weekend-cell');
+        }
+    }
+    
+    function updateTotal(serviceId) {
+        let total = 0;
+        document.querySelectorAll(`[data-service="${serviceId}"]`).forEach(cell => {
+            total += parseInt(cell.dataset.count) || 0;
+        });
+        
+        const totalCell = document.getElementById(`total-${serviceId}`);
+        if (totalCell) {
+            const maxSpan = totalCell.querySelector('span');
+            totalCell.innerHTML = total;
+            if (serviceLimits[serviceId]) {
+                totalCell.innerHTML += `<span class="text-xs opacity-60">/${serviceLimits[serviceId]}</span>`;
+            }
+        }
+    }
+    
+    function applyFilters() {
+        const year = document.getElementById('yearSelect').value;
+        const month = document.getElementById('monthSelect').value;
+        const department = document.getElementById('departmentSelect').value;
+        const recipient = document.getElementById('recipientSelect').value;
+        
+        let url = `/services/tabel/?year=${year}&month=${month}`;
+        if (department) url += `&department=${department}`;
+        if (recipient) url += `&recipient=${recipient}`;
+        
+        window.location.href = url;
+    }
+    
+    function printTable() {
+        // Открываем печатную версию в новом окне
+        const printUrl = `/services/tabel/print/?recipient=${currentRecipient}&year=${currentYear}&month=${currentMonth}`;
+        window.open(printUrl, '_blank');
+    }
+    
+    async function clearAllServices() {
+        if (!currentRecipient) {
+            alert('Выберите получателя услуг');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/services/api/clear-month/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken
+                },
+                body: JSON.stringify({
+                    recipient_id: currentRecipient,
+                    year: currentYear,
+                    month: currentMonth + 1
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // Очищаем все ячейки визуально
+                document.querySelectorAll('.day-cell').forEach(cell => {
+                    cell.textContent = '';
+                    cell.classList.remove('count-1', 'count-2', 'count-3', 'count-4');
+                    cell.classList.add('count-0');
+                });
+                
+                // Очищаем итоги
+                document.querySelectorAll('.total-cell').forEach(total => {
+                    // Сохраняем лимит если есть
+                    const limitSpan = total.querySelector('span');
+                    if (limitSpan) {
+                        total.textContent = '0';
+                        total.appendChild(limitSpan);
+                    } else {
+                        total.textContent = '0';
+                    }
+                });
+            } else {
+                alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Ошибка при очистке услуг');
+        }
+    }
+    
+    // Автозаполнение табеля на основе лимитов услуг
+    async function autoFillServices() {
+        if (!currentRecipient) {
+            return;
+        }
+        
+        // Показываем индикатор загрузки
+        const autofillBtn = document.getElementById('autofill-btn');
+        const originalText = autofillBtn.innerHTML;
+        autofillBtn.disabled = true;
+        autofillBtn.innerHTML = '<svg class="w-4 h-4 mr-2 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Заполнение...';
+        
+        try {
+            // Вызываем серверный API для автозаполнения
+            const response = await fetch('/services/api/autofill/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken
+                },
+                body: JSON.stringify({
+                    recipient_id: currentRecipient,
+                    year: currentYear,
+                    month: currentMonth + 1  // API ожидает 1-12
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // Получаем обновленные данные и обновляем таблицу без перезагрузки
+                const logsResponse = await fetch(`/services/api/service-logs/?recipient=${currentRecipient}&year=${currentYear}&month=${currentMonth + 1}`);
+                const logsData = await logsResponse.json();
+                
+                // Очищаем все ячейки
+                document.querySelectorAll('.day-cell').forEach(cell => {
+                    updateCellDisplay(cell, 0);
+                });
+                
+                // Заполняем ячейки новыми данными
+                for (const key in logsData.logs) {
+                    const [serviceId, day] = key.split('-');
+                    const count = logsData.logs[key];
+                    const cell = document.getElementById(`cell-${serviceId}-${day}`);
+                    if (cell && count > 0) {
+                        updateCellDisplay(cell, count);
+                    }
+                }
+                
+                // Обновляем итоги для всех услуг
+                document.querySelectorAll('.service-name-clickable').forEach(cell => {
+                    const serviceId = cell.dataset.service;
+                    updateTotal(serviceId);
+                });
+            }
+            
+            // Восстанавливаем кнопку
+            autofillBtn.innerHTML = originalText;
+            autofillBtn.disabled = false;
+            
+        } catch (error) {
+            console.error('Error during autofill:', error);
+            autofillBtn.innerHTML = originalText;
+            autofillBtn.disabled = false;
+        }
+    }
+    
+    // Добавляем обработчик для кнопки автозаполнения
+    document.addEventListener('DOMContentLoaded', function() {
+        const autofillBtn = document.getElementById('autofill-btn');
+        if (autofillBtn) {
+            autofillBtn.addEventListener('click', autoFillServices);
+        }
+    });
+</script>
+{% endblock %}

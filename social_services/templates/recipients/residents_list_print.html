@@ -1,0 +1,313 @@
+{% extends 'base.html' %}
+
+{% block title %}Список проживающих{% endblock %}
+
+{% block main_container_class %}w-full px-4 sm:px-6 lg:px-8 py-6{% endblock %}
+
+{% block extra_css %}
+<style>
+    @media print {
+        .no-print { display: none !important; }
+        body { font-size: 11px; }
+        .print-page { padding: 0; margin: 0; }
+        .room-section { page-break-inside: avoid; }
+        .department-section { page-break-before: always; }
+        .department-section:first-of-type { page-break-before: avoid; }
+        table { font-size: 10px; }
+        .header-section { page-break-after: avoid; }
+    }
+    
+    .print-page {
+        max-width: 210mm;
+        margin: 0 auto;
+        background: white;
+    }
+    
+    .header-section {
+        text-align: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #0ea5e9;
+    }
+    
+    .header-section h1 {
+        font-size: 18px;
+        font-weight: 600;
+        margin: 0 0 5px 0;
+    }
+    
+    .header-section p {
+        font-size: 12px;
+        color: #64748b;
+        margin: 0;
+    }
+    
+    .department-section {
+        margin-bottom: 30px;
+    }
+    
+    .department-header {
+        background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+        color: white;
+        padding: 10px 15px;
+        font-weight: 600;
+        font-size: 14px;
+        border-radius: 6px;
+        margin-bottom: 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .room-section {
+        margin-bottom: 20px;
+    }
+    
+    .room-header {
+        background: #f1f5f9;
+        padding: 8px 15px;
+        font-weight: 600;
+        font-size: 13px;
+        border-radius: 6px 6px 0 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-left: 4px solid #0ea5e9;
+    }
+    
+    .room-header span {
+        opacity: 0.7;
+        font-weight: 400;
+        font-size: 11px;
+    }
+    
+    .residents-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+    }
+    
+    .residents-table th {
+        background: #f8fafc;
+        padding: 8px 10px;
+        text-align: left;
+        font-weight: 600;
+        color: #475569;
+        border-bottom: 2px solid #e2e8f0;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    
+    .residents-table td {
+        padding: 8px 10px;
+        border-bottom: 1px solid #e2e8f0;
+        vertical-align: middle;
+    }
+    
+    .residents-table tr:hover {
+        background: #f8fafc;
+    }
+    
+    .resident-name {
+        font-weight: 500;
+        color: #1e293b;
+    }
+    
+    .stats-section {
+        margin-top: 30px;
+        padding: 15px;
+        background: #f8fafc;
+        border-radius: 8px;
+        display: flex;
+        justify-content: space-around;
+        text-align: center;
+    }
+    
+    .stat-item {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .stat-value {
+        font-size: 24px;
+        font-weight: 700;
+        color: #0ea5e9;
+    }
+    
+    .stat-label {
+        font-size: 11px;
+        color: #64748b;
+        text-transform: uppercase;
+    }
+    
+    .signature-section {
+        margin-top: 40px;
+        padding-top: 20px;
+        border-top: 1px solid #e2e8f0;
+    }
+    
+    .signature-line {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 30px;
+    }
+    
+    .signature-field {
+        text-align: center;
+        width: 200px;
+    }
+    
+    .signature-field .line {
+        border-bottom: 1px solid #1e293b;
+        margin-bottom: 5px;
+        height: 30px;
+    }
+    
+    .signature-field .label {
+        font-size: 10px;
+        color: #64748b;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="print-page">
+    <!-- Header -->
+    <div class="header-section">
+        {% if is_all %}
+            <h1>Список проживающих на {{ today|date:"d.m.Y" }}</h1>
+        {% else %}
+            <h1>Список проживающих (выбранные отделения) на {{ today|date:"d.m.Y" }}</h1>
+        {% endif %}
+        <p>Всего проживающих: {{ total_recipients }} чел.</p>
+    </div>
+    
+    <!-- Actions -->
+    <div class="no-print mb-4 flex justify-between items-center">
+        <a href="{% url 'recipients:residents_list' %}" class="inline-flex items-center px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg transition-colors">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+            Назад к выбору отделений
+        </a>
+        <button onclick="window.print()" class="inline-flex items-center px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium rounded-lg transition-colors">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+            </svg>
+            Печать
+        </button>
+    </div>
+    
+    <!-- Departments -->
+    {% for dept_data in departments_data %}
+    <div class="department-section">
+        <div class="department-header">
+            {{ dept_data.department.name }}
+            <span>{{ dept_data.recipient_count }} чел.</span>
+        </div>
+        
+        {% if view_mode == 'grouped' %}
+        <!-- Residents by Room -->
+        {% for room, residents in dept_data.rooms_data %}
+        <div class="room-section">
+            <div class="room-header">
+                {% if room == 'Без комнаты' %}
+                    Без комнаты
+                {% else %}
+                    Комната {{ room }}
+                {% endif %}
+                <span>{{ residents|length }} чел.</span>
+            </div>
+            
+            <table class="residents-table">
+                <thead>
+                    <tr>
+                        <th style="width: 30px;">№</th>
+                        <th>ФИО</th>
+                        <th style="width: 100px;">Дата рождения</th>
+                        <th style="width: 60px;">Возраст</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for resident in residents %}
+                    <tr>
+                        <td style="text-align: center;">{{ forloop.counter }}</td>
+                        <td>
+                            <div class="resident-name">{{ resident.full_name }}</div>
+                        </td>
+                        <td style="text-align: center;">{{ resident.birth_date|date:"d.m.Y" }}</td>
+                        <td style="text-align: center;">{{ resident.age }} лет</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% empty %}
+        <div class="text-center py-8 text-slate-500">
+            <p>В отделении нет проживающих</p>
+        </div>
+        {% endfor %}
+        
+        {% else %}
+        <!-- All Residents (Single List) -->
+        {% if dept_data.all_recipients %}
+        <div class="room-section">
+            <div class="room-header">
+                Общий список проживающих
+                <span>{{ dept_data.all_recipients|length }} чел.</span>
+            </div>
+            
+            <table class="residents-table">
+                <thead>
+                    <tr>
+                        <th style="width: 30px;">№</th>
+                        <th>ФИО</th>
+                        <th style="width: 100px;">Дата рождения</th>
+                        <th style="width: 60px;">Возраст</th>
+                        <th style="width: 80px;">Комната</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for resident in dept_data.all_recipients %}
+                    <tr>
+                        <td style="text-align: center;">{{ forloop.counter }}</td>
+                        <td>
+                            <div class="resident-name">{{ resident.full_name }}</div>
+                        </td>
+                        <td style="text-align: center;">{{ resident.birth_date|date:"d.m.Y" }}</td>
+                        <td style="text-align: center;">{{ resident.age }} лет</td>
+                        <td style="text-align: center;">{{ resident.room|default:"—" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-8 text-slate-500">
+            <p>В отделении нет проживающих</p>
+        </div>
+        {% endif %}
+        {% endif %}
+    </div>
+    {% endfor %}
+    
+    <!-- Signature Section -->
+    <div class="signature-section">
+        <div class="signature-line">
+            <div class="signature-field">
+                <div class="line"></div>
+                <div class="label">Директор</div>
+            </div>
+            <div class="signature-field">
+                <div class="line"></div>
+                <div class="label">Подпись</div>
+            </div>
+            <div class="signature-field">
+                <div class="line"></div>
+                <div class="label">Дата</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

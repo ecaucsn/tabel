@@ -1,0 +1,259 @@
+{% extends 'base.html' %}
+{% load service_tags %}
+
+{% block title %}ИППСУ - {{ recipient.full_name }}{% endblock %}
+
+{% block content %}
+<div class="py-6">
+    <!-- Header Section -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mx-4 mb-4">
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <!-- Title with back button -->
+            <div class="flex items-center gap-4">
+                <a href="{% url 'dashboard' %}" class="p-2 hover:bg-slate-100 rounded-lg transition-colors" title="На главную">
+                    <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                    </svg>
+                </a>
+                <div>
+                    <h1 class="text-xl font-semibold text-slate-800">ИППСУ - Индивидуальный план социальных услуг</h1>
+                    <p class="text-sm text-slate-500 mt-1">Выберите проживающего для редактирования ИППСУ</p>
+                </div>
+            </div>
+            
+            <!-- Filters -->
+            <div class="flex flex-wrap items-center gap-3">
+                <div class="flex flex-col">
+                    <label class="text-xs font-medium text-slate-500 mb-1">Отделение</label>
+                    <select id="departmentSelect" onchange="filterRecipients()"
+                            class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 min-w-[150px]">
+                        <option value="">Все отделения</option>
+                        {% for dept in departments %}
+                        <option value="{{ dept.id }}" {% if dept.id == recipient.department.id %}selected{% endif %}>
+                            {{ dept.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="flex flex-col">
+                    <label class="text-xs font-medium text-slate-500 mb-1">Проживающий</label>
+                    <select id="recipientSelect" onchange="goToRecipient()"
+                            class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 min-w-[200px]">
+                        {% for r in recipients %}
+                        <option value="{{ r.id }}" {% if r.id == recipient.id %}selected{% endif %}>
+                            {{ r.full_name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Resident Card -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mx-4 mb-4">
+        <div class="flex items-start gap-4">
+            <!-- Аватар получателя -->
+            {% if recipient.photo %}
+            <div class="w-20 h-20 flex-shrink-0">
+                <img src="{{ recipient.photo.url }}" 
+                     alt="{{ recipient.full_name }}"
+                     class="w-20 h-20 rounded-full object-cover shadow-sm border-2 border-white">
+            </div>
+            {% else %}
+            <div class="w-20 h-20 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center text-white text-2xl font-semibold shadow-sm flex-shrink-0">
+                {{ recipient.full_name|slice:":1" }}
+            </div>
+            {% endif %}
+            <div class="flex-1">
+                <!-- ФИО с возрастом и статусом -->
+                <div class="flex items-center gap-2 flex-wrap">
+                    <h2 class="text-lg font-semibold text-slate-800">{{ recipient.full_name }}</h2>
+                    {% if recipient.age %}
+                    <span class="text-slate-500 text-sm">({{ recipient.age }} лет)</span>
+                    {% endif %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                        {% if recipient.status == 'active' %}bg-green-100 text-green-800
+                        {% elif recipient.status == 'vacation' %}bg-yellow-100 text-yellow-800
+                        {% elif recipient.status == 'hospital' %}bg-blue-100 text-blue-800
+                        {% else %}bg-red-100 text-red-800{% endif %}">
+                        {{ recipient.get_status_display }}
+                    </span>
+                </div>
+                <!-- Дополнительная информация под ФИО и кнопки справа -->
+                <div class="flex items-center justify-between gap-4 mt-1">
+                    <div class="flex items-center gap-4 text-sm text-slate-500">
+                        <span>Дата рождения: {{ recipient.birth_date|date:"d.m.Y" }}</span>
+                        {% if recipient.department %}
+                        <span>Отделение: {{ recipient.department.name }}</span>
+                        {% endif %}
+                        {% if recipient.room %}
+                        <span>Комната: {{ recipient.room }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="flex items-center gap-2 flex-shrink-0">
+                        <a href="{% url 'recipients:detail' recipient.id %}" 
+                           class="inline-flex items-center px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg transition-colors">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                            </svg>
+                            Профиль
+                        </a>
+                        <a href="{% url 'reports:act_generator' %}?recipient={{ recipient.id }}" 
+                           class="inline-flex items-center px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-medium rounded-lg transition-colors">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                            Акт
+                        </a>
+                        <a href="{% url 'services:tabel' %}?recipient={{ recipient.id }}" 
+                           class="inline-flex items-center px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium rounded-lg transition-colors">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/>
+                            </svg>
+                            Табель
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Форма ИППСУ -->
+    <form method="post" class="space-y-6">
+        {% csrf_token %}
+        
+        <!-- Данные договора -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <h2 class="text-lg font-semibold text-slate-800 mb-4">Данные ИППСУ</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Номер</label>
+                    <input type="text" name="number" value="{{ contract.number|default:'' }}" 
+                           placeholder="Автоматически, если пусто"
+                           class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Дата начала</label>
+                    <input type="date" name="date_start" value="{{ contract.date_start|date:'Y-m-d'|default:'' }}"
+                           class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Дата окончания</label>
+                    <input type="date" name="date_end" value="{{ contract.date_end|date:'Y-m-d'|default:'' }}"
+                           class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                </div>
+            </div>
+        </div>
+        
+        <!-- Выбор услуг -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-slate-800">Социальные услуги</h2>
+                <div class="flex gap-2">
+                    <button type="button" onclick="selectAll()" 
+                            class="text-xs px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-colors">
+                        Выбрать все
+                    </button>
+                    <button type="button" onclick="deselectAll()" 
+                            class="text-xs px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-colors">
+                        Снять выбор
+                    </button>
+                </div>
+            </div>
+            
+            <div class="space-y-4">
+                {% for category in categories %}
+                <div class="border border-slate-200 rounded-lg overflow-hidden">
+                    <div class="bg-slate-50 px-4 py-2 border-b border-slate-200">
+                        <span class="font-medium text-slate-700">{{ category.name }}</span>
+                    </div>
+                    <div class="p-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                            {% for service in category.services.all %}
+                            {% if service.is_active and not service.parent %}
+                            <label class="flex items-start gap-2 p-2 rounded-lg hover:bg-slate-50 cursor-pointer service-item">
+                                <input type="checkbox" name="services" value="{{ service.id }}" 
+                                       class="mt-1 h-4 w-4 text-primary-600 border-slate-300 rounded focus:ring-primary-500"
+                                       {% if service.id in selected_service_ids %}checked{% endif %}>
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-sm text-slate-700">{{ service.code }}. {{ service.name }}</div>
+                                    <div class="text-xs text-slate-400">
+                                        {{ service.price }} руб. / {{ service.frequency_display }}
+                                    </div>
+                                </div>
+                            </label>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="text-center py-8 text-slate-500">
+                    Нет доступных услуг
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- Кнопки -->
+        <div class="flex gap-3">
+            <a href="{% url 'recipients:detail' recipient.id %}" 
+               class="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg transition-colors text-center">
+                Отмена
+            </a>
+            <button type="submit" 
+                    class="flex-1 px-4 py-2.5 bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium rounded-lg transition-colors">
+                Сохранить ИППСУ
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+function selectAll() {
+    document.querySelectorAll('input[name="services"]').forEach(cb => cb.checked = true);
+}
+
+function deselectAll() {
+    document.querySelectorAll('input[name="services"]').forEach(cb => cb.checked = false);
+}
+
+function goToRecipient() {
+    const recipientId = document.getElementById('recipientSelect').value;
+    if (recipientId) {
+        window.location.href = `/recipients/${recipientId}/contract/`;
+    }
+}
+
+// Данные для фильтрации
+const recipientsData = [
+    {% for r in recipients %}
+    {id: {{ r.id }}, name: "{{ r.full_name }}", departmentId: {{ r.department.id|default:0 }}},
+    {% endfor %}
+];
+
+function filterRecipients() {
+    const deptId = document.getElementById('departmentSelect').value;
+    const recipientSelect = document.getElementById('recipientSelect');
+    const currentRecipientId = {{ recipient.id }};
+    
+    // Очищаем список
+    recipientSelect.innerHTML = '';
+    
+    // Фильтруем и добавляем
+    recipientsData.forEach(r => {
+        if (!deptId || r.departmentId == deptId) {
+            const option = document.createElement('option');
+            option.value = r.id;
+            option.textContent = r.name;
+            if (r.id == currentRecipientId) {
+                option.selected = true;
+            }
+            recipientSelect.appendChild(option);
+        }
+    });
+}
+</script>
+{% endblock %}

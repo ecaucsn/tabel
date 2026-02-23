@@ -1,0 +1,435 @@
+{% extends 'base.html' %}
+{% load service_tags %}
+
+{% block title %}Проживающие{% endblock %}
+
+{% block content %}
+<div class="py-8">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+            <h1 class="text-2xl font-semibold text-slate-800">Проживающие</h1>
+            <p class="text-slate-500 mt-1">Всего: {{ recipients.count }} человек</p>
+        </div>
+        
+        {% if user.is_admin_or_hr %}
+        <a href="/admin/recipients/recipient/add/" 
+           class="inline-flex items-center px-4 py-2.5 bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium rounded-lg transition-colors">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            Добавить проживающего
+        </a>
+        {% endif %}
+    </div>
+    
+    <!-- Filters -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-6">
+        <div class="flex flex-wrap items-center gap-4">
+            <div class="flex items-center gap-2">
+                <label class="text-sm font-medium text-slate-700">Отделение:</label>
+                <select id="deptFilter" onchange="filterRecipients()" 
+                        class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                    <option value="">Все</option>
+                    {% for dept in departments %}
+                    <option value="{{ dept.id }}" {% if dept.id|stringformat:"s" == selected_dept %}selected{% endif %}>
+                        {{ dept.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="flex items-center gap-2">
+                <label class="text-sm font-medium text-slate-700">Статус:</label>
+                <select id="deptTypeFilter" onchange="filterRecipients()"
+                        class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                    <option value="">Все</option>
+                    <option value="residential" {% if selected_dept_type == 'residential' %}selected{% endif %}>Проживает</option>
+                    <option value="mercy" {% if selected_dept_type == 'mercy' %}selected{% endif %}>Милосердие</option>
+                    <option value="hospital" {% if selected_dept_type == 'hospital' %}selected{% endif %}>Больница</option>
+                    <option value="vacation" {% if selected_dept_type == 'vacation' %}selected{% endif %}>В отпуске</option>
+                    <option value="deceased" {% if selected_dept_type == 'deceased' %}selected{% endif %}>Умер</option>
+                </select>
+            </div>
+            
+            <div class="flex items-center gap-2">
+                <label class="text-sm font-medium text-slate-700">Сортировка:</label>
+                <select id="sortField" onchange="filterRecipients()"
+                        class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                    <option value="last_name" {% if sort_field == 'last_name' %}selected{% endif %}>По фамилии</option>
+                    <option value="first_name" {% if sort_field == 'first_name' %}selected{% endif %}>По имени</option>
+                    <option value="birth_date" {% if sort_field == 'birth_date' %}selected{% endif %}>По дате рождения</option>
+                    <option value="department__name" {% if sort_field == 'department__name' %}selected{% endif %}>По отделению</option>
+                    <option value="room" {% if sort_field == 'room' %}selected{% endif %}>По комнате</option>
+                </select>
+                <select id="sortDir" onchange="filterRecipients()"
+                        class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                    <option value="asc" {% if sort_direction == 'asc' %}selected{% endif %}>А-Я</option>
+                    <option value="desc" {% if sort_direction == 'desc' %}selected{% endif %}>Я-А</option>
+                </select>
+            </div>
+            
+            <div class="flex-1 min-w-[200px]">
+                <input type="text" id="searchInput" placeholder="Поиск по ФИО..." onkeyup="filterRecipientsDebounced()"
+                       class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                       value="{{ search_query }}">
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recipients Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {% for recipient in recipients %}
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 hover:shadow-md hover:border-slate-300 transition-all" data-recipient-id="{{ recipient.id }}">
+            <div class="flex gap-3">
+                <!-- Фото слева -->
+                <div class="flex flex-col items-center flex-shrink-0">
+                    {% if recipient.photo %}
+                    <div class="w-20 h-24 rounded-lg overflow-hidden border border-slate-200 cursor-pointer hover:ring-2 hover:ring-primary-300 transition-all"
+                         onclick="openPhotoModal('{{ recipient.photo.url }}', '{{ recipient.full_name }}')">
+                        <img src="{{ recipient.photo.url }}" alt="{{ recipient.full_name }}" 
+                             class="w-full h-full object-cover">
+                    </div>
+                    {% else %}
+                    <div class="w-20 h-24 bg-gradient-to-br from-primary-400 to-primary-600 rounded-lg flex items-center justify-center text-white text-2xl font-semibold border border-slate-200">
+                        {{ recipient.full_name|slice:":1" }}
+                    </div>
+                    {% endif %}
+                    <!-- Статус под фото - кликабельный -->
+                    <button onclick="openStatusModal({{ recipient.id }})" 
+                            class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium mt-2 cursor-pointer hover:ring-2 hover:ring-primary-300 transition-all status-badge
+                                {% if recipient.status == 'active' %}bg-green-100 text-green-800 hover:bg-green-200
+                                {% elif recipient.status == 'vacation' %}bg-yellow-100 text-yellow-800 hover:bg-yellow-200
+                                {% elif recipient.status == 'hospital' %}bg-blue-100 text-blue-800 hover:bg-blue-200
+                                {% elif recipient.status == 'deceased' %}bg-red-100 text-red-800 hover:bg-red-200
+                                {% else %}bg-slate-100 text-slate-800 hover:bg-slate-200{% endif %}"
+                            title="Нажмите для изменения статуса">
+                        {{ recipient.status_display }}
+                    </button>
+                </div>
+                
+                <!-- Информация справа от фото -->
+                <div class="flex-1 min-w-0 flex flex-col">
+                    <!-- ФИО сверху справа -->
+                    <h3 class="text-sm font-semibold text-slate-800 mb-1">
+                        {{ recipient.full_name }}
+                    </h3>
+                    
+                    <!-- Дата рождения -->
+                    <div class="text-xs text-slate-600 mb-1">
+                        Дата рождения {{ recipient.birth_date|date:"d.m.Y" }} {% if recipient.age %}({{ recipient.age }} {{ recipient.age|age_ending }}){% endif %}
+                    </div>
+                    
+                    <!-- Дата заселения -->
+                    {% if recipient.admission_date %}
+                    <div class="text-xs text-slate-600 mb-1">
+                        Дата заселения: {{ recipient.admission_date|date:"d.m.Y" }}
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Отделение и Комната -->
+                    <div class="text-xs text-slate-600 mb-1">
+                        Отделение: {{ recipient.department.name|default:"—" }}{% if recipient.room %}, комн. {{ recipient.room }}{% endif %}
+                    </div>
+                    
+                    <!-- Кнопки ИППСУ, Табель, Акт и Редактирование -->
+                    <div class="flex items-center justify-end gap-2 mt-auto pt-2">
+                        <a href="{% url 'recipients:contract' recipient.id %}" 
+                           class="inline-flex items-center justify-center px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-lg transition-colors">
+                            <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                            ИППСУ
+                        </a>
+                        <a href="{% url 'services:tabel' %}?recipient={{ recipient.id }}" 
+                           class="inline-flex items-center justify-center px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-lg transition-colors">
+                            <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/>
+                            </svg>
+                            Табель
+                        </a>
+                        <a href="{% url 'reports:act_generator' %}?recipient={{ recipient.id }}" 
+                           class="inline-flex items-center justify-center px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-lg transition-colors">
+                            <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                            Акт
+                        </a>
+                        <a href="{% url 'recipients:detail' recipient.id %}" 
+                           class="inline-flex items-center justify-center p-1.5 bg-primary-100 hover:bg-primary-200 text-primary-700 rounded-lg transition-colors" title="Редактировать профиль">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-span-full bg-white rounded-xl shadow-sm border border-slate-200 p-12">
+            <div class="flex flex-col items-center text-center">
+                <svg class="w-16 h-16 text-slate-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                </svg>
+                <p class="text-slate-500 font-medium">Проживающие не найдены</p>
+                <p class="text-slate-400 text-sm mt-1">Попробуйте изменить параметры фильтрации</p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Модальное окно изменения статуса -->
+<div id="statusModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div class="p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-slate-800">Изменение статуса</h3>
+                <button onclick="closeStatusModal()" class="text-slate-400 hover:text-slate-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <form id="statusForm" onsubmit="submitStatusChange(event)">
+                <input type="hidden" id="recipientId" name="recipient_id">
+                
+                <!-- Информация о проживающем -->
+                <div class="mb-4 p-3 bg-slate-50 rounded-lg">
+                    <p class="text-sm font-medium text-slate-800" id="recipientName"></p>
+                    <p class="text-xs text-slate-500" id="recipientInfo"></p>
+                </div>
+                
+                <!-- Новое отделение -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Новое отделение/статус</label>
+                    <select id="newDepartment" name="department" required
+                            class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                        <option value="">Выберите отделение</option>
+                        {% for dept in all_departments %}
+                        <option value="{{ dept.id }}" data-type="{{ dept.department_type }}">
+                            {{ dept.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Комната -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Комната</label>
+                    <input type="text" id="newRoom" name="room"
+                           class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                           placeholder="Номер комнаты">
+                </div>
+                
+                <!-- Дата изменения -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Дата изменения</label>
+                    <input type="date" id="changeDate" name="change_date"
+                           class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                </div>
+                
+                <!-- Причина -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Причина изменения</label>
+                    <textarea id="changeReason" name="reason" rows="2"
+                              class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                              placeholder="Укажите причину изменения статуса"></textarea>
+                </div>
+                
+                <!-- Кнопки -->
+                <div class="flex gap-3">
+                    <button type="button" onclick="closeStatusModal()"
+                            class="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg transition-colors">
+                        Отмена
+                    </button>
+                    <button type="submit"
+                            class="flex-1 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium rounded-lg transition-colors">
+                        Сохранить
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+let searchTimeout = null;
+let currentRecipientId = null;
+
+// Данные проживающих для модального окна
+const recipientsData = {
+    {% for recipient in recipients %}
+    {{ recipient.id }}: {
+        name: '{{ recipient.full_name }}',
+        department: {{ recipient.department.id|default:'null' }},
+        departmentName: '{{ recipient.department.name|default:"" }}',
+        room: '{{ recipient.room|default:"" }}',
+        status: '{{ recipient.status }}'
+    },
+    {% endfor %}
+};
+
+function filterRecipients() {
+    const dept = document.getElementById('deptFilter').value;
+    const deptType = document.getElementById('deptTypeFilter').value;
+    const search = document.getElementById('searchInput').value;
+    const sortField = document.getElementById('sortField').value;
+    const sortDir = document.getElementById('sortDir').value;
+    
+    let url = '{% url "recipients:list" %}?';
+    if (dept) url += `department=${dept}&`;
+    if (deptType) url += `dept_type=${deptType}&`;
+    if (search) url += `search=${encodeURIComponent(search)}&`;
+    url += `sort=${sortField}&`;
+    url += `dir=${sortDir}&`;
+    
+    window.location.href = url;
+}
+
+function filterRecipientsDebounced() {
+    // Сбрасываем предыдущий таймер
+    if (searchTimeout) {
+        clearTimeout(searchTimeout);
+    }
+    // Задержка 500мс перед применением фильтра
+    searchTimeout = setTimeout(filterRecipients, 500);
+}
+
+function openStatusModal(recipientId) {
+    currentRecipientId = recipientId;
+    const recipient = recipientsData[recipientId];
+    
+    if (!recipient) {
+        alert('Ошибка: данные проживающего не найдены');
+        return;
+    }
+    
+    document.getElementById('recipientId').value = recipientId;
+    document.getElementById('recipientName').textContent = recipient.name;
+    document.getElementById('recipientInfo').textContent = `Отделение: ${recipient.departmentName}, Комната: ${recipient.room || '—'}`;
+    document.getElementById('newRoom').value = recipient.room;
+    
+    // Устанавливаем текущее отделение по умолчанию
+    if (recipient.department) {
+        document.getElementById('newDepartment').value = recipient.department;
+    }
+    
+    // Устанавливаем текущую дату
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('changeDate').value = today;
+    
+    // Показываем модальное окно
+    document.getElementById('statusModal').classList.remove('hidden');
+    document.getElementById('statusModal').classList.add('flex');
+}
+
+function closeStatusModal() {
+    document.getElementById('statusModal').classList.add('hidden');
+    document.getElementById('statusModal').classList.remove('flex');
+    currentRecipientId = null;
+}
+
+async function submitStatusChange(event) {
+    event.preventDefault();
+    
+    const recipientId = document.getElementById('recipientId').value;
+    const departmentId = document.getElementById('newDepartment').value;
+    const room = document.getElementById('newRoom').value;
+    const reason = document.getElementById('changeReason').value;
+    
+    if (!departmentId) {
+        alert('Выберите отделение');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/recipients/${recipientId}/change-status/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({
+                department_id: departmentId,
+                room: room,
+                reason: reason
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Перезагружаем страницу для отображения изменений
+            window.location.reload();
+        } else {
+            alert('Ошибка: ' + (data.error || 'Не удалось изменить статус'));
+        }
+    } catch (error) {
+        alert('Ошибка соединения: ' + error.message);
+    }
+}
+
+function getCsrfToken() {
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'csrftoken') {
+            return value;
+        }
+    }
+    return '';
+}
+
+// Закрытие модального окна по клику вне его
+document.getElementById('statusModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeStatusModal();
+    }
+});
+
+// Модальное окно для просмотра фото
+function openPhotoModal(photoUrl, recipientName) {
+    // Создаём модальное окно
+    const modal = document.createElement('div');
+    modal.id = 'photoModal';
+    modal.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50';
+    modal.onclick = function(e) {
+        if (e.target === modal) {
+            closePhotoModal();
+        }
+    };
+    
+    modal.innerHTML = `
+        <div class="relative max-w-4xl max-h-[90vh] mx-4">
+            <button onclick="closePhotoModal()" class="absolute -top-10 right-0 text-white hover:text-gray-300 transition-colors">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+            <img src="${photoUrl}" alt="${recipientName}" class="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl">
+            <p class="text-center text-white mt-3 text-lg">${recipientName}</p>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    document.body.style.overflow = 'hidden';
+}
+
+function closePhotoModal() {
+    const modal = document.getElementById('photoModal');
+    if (modal) {
+        modal.remove();
+        document.body.style.overflow = '';
+    }
+}
+
+// Закрытие по Escape
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closePhotoModal();
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block title %}Списки - Социальные услуги{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <h1 class="text-2xl font-bold text-slate-800 mb-6">Генерация списков</h1>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Кнопка списка проживающих -->
+            <a href="{% url 'recipients:residents_list' %}" 
+               class="flex flex-col items-center justify-center p-8 bg-primary-50 rounded-lg border-2 border-primary-200 hover:border-primary-400 hover:bg-primary-100 transition-colors group">
+                <svg class="w-16 h-16 text-primary-600 group-hover:text-primary-700 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                </svg>
+                <span class="text-lg font-semibold text-primary-700 group-hover:text-primary-800">Список проживающих</span>
+                <span class="text-sm text-primary-600 mt-2">Печать списков по отделениям</span>
+            </a>
+            
+            <!-- Кнопка списка юбиляров -->
+            <a href="{% url 'recipients:jubilees' %}" 
+               class="flex flex-col items-center justify-center p-8 bg-amber-50 rounded-lg border-2 border-amber-200 hover:border-amber-400 hover:bg-amber-100 transition-colors group">
+                <svg class="w-16 h-16 text-amber-600 group-hover:text-amber-700 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 15.546c-.523 0-1.046.151-1.5.454a2.704 2.704 0 01-3 0 2.704 2.704 0 00-3 0 2.704 2.704 0 01-3 0 2.704 2.704 0 00-3 0 2.704 2.704 0 01-3 0 2.701 2.701 0 00-1.5-.454M9 6v2m3-2v2m3-2v2M9 3h.01M12 3h.01M15 3h.01M21 21v-7a2 2 0 00-2-2H5a2 2 0 00-2 2v7h18zm-3-9v-2a2 2 0 00-2-2H8a2 2 0 00-2 2v2h12z"></path>
+                </svg>
+                <span class="text-lg font-semibold text-amber-700 group-hover:text-amber-800">Список юбиляров</span>
+                <span class="text-sm text-amber-600 mt-2">Юбиляры месяца с указанием возраста</span>
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
