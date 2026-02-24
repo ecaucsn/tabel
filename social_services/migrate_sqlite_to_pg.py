@@ -43,6 +43,7 @@ def main():
     table_order = [
         'core_user',
         'core_department',
+        'services_servicecategory',  # Категории услуг (должны быть до услуг)
         'recipients_recipient',
         'recipients_placementhistory',
         'recipients_contract',
