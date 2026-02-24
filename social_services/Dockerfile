@@ -1,20 +1,20 @@
 FROM python:3.11-slim
 
+# Use Yandex mirror for faster downloads in Russia
+RUN sed -i 's/deb.debian.org/mirror.yandex.ru/g' /etc/apt/sources.list.d/debian.sources
+
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# Install system dependencies for WeasyPrint and PostgreSQL
-RUN apt-get update && apt-get install -y \
-    gcc \
-    libpango-1.0-0 \
-    libpangocairo-1.0-0 \
-    libgdk-pixbuf2.0-0 \
-    libffi-dev \
-    shared-mime-info \
-    libpq-dev \
+# Install runtime dependencies only (no build tools needed)
+# - libpq5: PostgreSQL client library for psycopg2-binary
+# - netcat-openbsd: for healthcheck/wait-for-db in entrypoint
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
     netcat-openbsd \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
 # Create working directory
 WORKDIR /app

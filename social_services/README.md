@@ -97,7 +97,7 @@ python manage.py setup_demo
 python manage.py runserver
 ```
 
-Откройте http://127.0.0.1:8000/
+Откройте http://127.0.0.1:5000/
 
 ---
 
@@ -129,7 +129,7 @@ mkdir -p media data
 docker-compose up -d --build
 ```
 
-Приложение будет доступно на http://localhost:8000/
+Приложение будет доступно на http://localhost:5000/
 
 #### 5. Создание суперпользователя
 
