@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if form.instance.pk %}Редактирование заявки{% else %}Новая заявка{% endif %} - СоцУслуги{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-800">
+                {% if form.instance.pk %}Редактирование заявки{% else %}Новая заявка на паёк{% endif %}
+            </h1>
+        </div>
+        <a href="{% url 'modules:requests' %}" class="text-slate-500 hover:text-slate-700">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+        </a>
+    </div>
+    
+    <!-- Form -->
+    <form method="post" class="bg-white rounded-lg shadow-sm border border-slate-200 p-6 space-y-6">
+        {% csrf_token %}
+        
+        {% if form.errors %}
+        <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+            <p class="text-sm text-red-800">Пожалуйста, исправьте ошибки в форме.</p>
+        </div>
+        {% endif %}
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Recipient -->
+            <div class="md:col-span-2">
+                <label for="{{ form.recipient.id_for_label }}" class="block text-sm font-medium text-slate-700 mb-1">
+                    Получатель услуг <span class="text-red-500">*</span>
+                </label>
+                {{ form.recipient }}
+                {% if form.recipient.errors %}
+                <p class="mt-1 text-sm text-red-600">{{ form.recipient.errors.0 }}</p>
+                {% endif %}
+            </div>
+            
+            <!-- Year -->
+            <div>
+                <label for="{{ form.year.id_for_label }}" class="block text-sm font-medium text-slate-700 mb-1">
+                    Год <span class="text-red-500">*</span>
+                </label>
+                {{ form.year }}
+                {% if form.year.errors %}
+                <p class="mt-1 text-sm text-red-600">{{ form.year.errors.0 }}</p>
+                {% endif %}
+            </div>
+            
+            <!-- Month -->
+            <div>
+                <label for="{{ form.month.id_for_label }}" class="block text-sm font-medium text-slate-700 mb-1">
+                    Месяц <span class="text-red-500">*</span>
+                </label>
+                {{ form.month }}
+                {% if form.month.errors %}
+                <p class="mt-1 text-sm text-red-600">{{ form.month.errors.0 }}</p>
+                {% endif %}
+            </div>
+            
+            <!-- Status (only for edit) -->
+            {% if form.instance.pk %}
+            <div class="md:col-span-2">
+                <label for="{{ form.status.id_for_label }}" class="block text-sm font-medium text-slate-700 mb-1">
+                    Статус
+                </label>
+                {{ form.status }}
+            </div>
+            {% endif %}
+            
+            <!-- Notes -->
+            <div class="md:col-span-2">
+                <label for="{{ form.notes.id_for_label }}" class="block text-sm font-medium text-slate-700 mb-1">
+                    Примечания
+                </label>
+                {{ form.notes }}
+            </div>
+        </div>
+        
+        <div class="flex justify-end space-x-3 pt-4 border-t border-slate-200">
+            <a href="{% url 'modules:requests' %}" class="px-4 py-2 text-slate-700 hover:text-slate-900">
+                Отмена
+            </a>
+            <button type="submit" class="px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium rounded-lg transition-colors">
+                {% if form.instance.pk %}Сохранить{% else %}Создать заявку{% endif %}
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+
+{% block title %}Цифровые профили - СоцУслуги{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-800">Цифровые профили</h1>
+            <p class="text-slate-500 mt-1">Информация о жителях с QR-кодами</p>
+        </div>
+        <a href="{% url 'modules:digital_profile_create' %}" 
+           class="inline-flex items-center px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium rounded-lg transition-colors">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            Новый профиль
+        </a>
+    </div>
+    
+    <!-- Search -->
+    <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
+        <form method="get" class="flex gap-4">
+            <div class="flex-1">
+                <input type="text" name="search" value="{{ request.GET.search }}" 
+                       placeholder="Поиск по фамилии или имени..."
+                       class="w-full rounded-lg border-slate-300 shadow-sm focus:border-primary-500 focus:ring-primary-500">
+            </div>
+            <button type="submit" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg transition-colors">
+                Найти
+            </button>
+        </form>
+    </div>
+    
+    <!-- Profiles Grid -->
+    {% if profiles %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for profile in profiles %}
+        <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow">
+            <div class="p-4">
+                <div class="flex items-start justify-between">
+                    <div class="flex items-center space-x-3">
+                        {% if profile.recipient.photo %}
+                        <img src="{{ profile.recipient.photo.url }}" alt="" 
+                             class="w-12 h-12 rounded-full object-cover">
+                        {% else %}
+                        <div class="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center">
+                            <span class="text-lg font-medium text-primary-700">{{ profile.recipient.last_name|slice:":1" }}</span>
+                        </div>
+                        {% endif %}
+                        <div>
+                            <h3 class="text-sm font-semibold text-slate-900">{{ profile.recipient.full_name }}</h3>
+                            <p class="text-xs text-slate-500">{{ profile.recipient.department.name|default:"—" }}</p>
+                        </div>
+                    </div>
+                    {% if profile.is_public %}
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                        Публичный
+                    </span>
+                    {% else %}
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600">
+                        Скрытый
+                    </span>
+                    {% endif %}
+                </div>
+                
+                {% if profile.hobbies %}
+                <div class="mt-3">
+                    <p class="text-xs text-slate-500">Увлечения:</p>
+                    <p class="text-sm text-slate-700">{{ profile.hobbies|truncatewords:10 }}</p>
+                </div>
+                {% endif %}
+                
+                {% if profile.qr_code %}
+                <div class="mt-3 flex justify-center">
+                    <img src="{{ profile.qr_code.url }}" alt="QR-код" class="w-24 h-24">
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="px-4 py-3 bg-slate-50 border-t border-slate-200 flex justify-between">
+                <a href="{% url 'modules:digital_profile_detail' profile.pk %}" 
+                   class="text-primary-600 hover:text-primary-700 text-sm font-medium">
+                    Открыть
+                </a>
+                <a href="{% url 'modules:digital_profile_edit' profile.pk %}" 
+                   class="text-slate-600 hover:text-slate-700 text-sm">
+                    Редактировать
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="bg-white rounded-lg shadow-sm border border-slate-200 text-center py-12">
+        <svg class="mx-auto h-12 w-12 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+        </svg>
+        <h3 class="mt-2 text-sm font-medium text-slate-900">Нет профилей</h3>
+        <p class="mt-1 text-sm text-slate-500">Создайте первый цифровой профиль</p>
+        <div class="mt-6">
+            <a href="{% url 'modules:digital_profile_create' %}" 
+               class="inline-flex items-center px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium rounded-lg transition-colors">
+                Новый профиль
+            </a>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <div class="flex items-center justify-between">
+        <p class="text-sm text-slate-500">
+            Показано {{ page_obj.start_index }} - {{ page_obj.end_index }} из {{ page_obj.paginator.count }}
+        </p>
+        <nav class="flex items-center space-x-2">
+            {% if page_obj.has_previous %}
+            <a href="?page={{ page_obj.previous_page_number }}" class="px-3 py-1 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50">
+                Назад
+            </a>
+            {% endif %}
+            <span class="px-3 py-1 bg-primary-50 text-primary-700 rounded-lg">
+                {{ page_obj.number }}
+            </span>
+            {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}" class="px-3 py-1 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50">
+                Вперёд
+            </a>
+            {% endif %}
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -13,6 +13,7 @@ urlpatterns = [
     path('services/', include('apps.services.urls')),
     path('recipients/', include('apps.recipients.urls')),
     path('reports/', include('apps.reports.urls')),
+    path('modules/', include('apps.modules.urls')),
 ]
 
 # Serve media files in development

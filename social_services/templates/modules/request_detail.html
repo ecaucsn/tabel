@@ -1,0 +1,265 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ request.recipient.full_name }} - {{ request.month_name }} {{ request.year }} - {% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <div class="flex items-center space-x-3">
+                <a href="{% url 'modules:requests' %}" class="text-slate-400 hover:text-slate-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                    </svg>
+                </a>
+                <h1 class="text-2xl font-bold text-slate-800"> {{ request.recipient.full_name }}</h1>
+            </div>
+            <p class="text-slate-500 mt-1 ml-8"> {{ request.month_name }} {{ request.year }}</p>
+        </div>
+        <div class="flex items-center space-x-3">
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
+                         {% if request.status == 'draft' %}bg-slate-100 text-slate-800
+                         {% elif request.status == 'submitted' %}bg-blue-100 text-blue-800
+                         {% elif request.status == 'approved' %}bg-green-100 text-green-800
+                         {% elif request.status == 'completed' %}bg-purple-100 text-purple-800
+                         {% endif %}">
+                {{ request.get_status_display }}
+            </span>
+            <a href="{% url 'modules:request_edit' request.pk %}" 
+               class="inline-flex items-center px-3 py-2 text-slate-600 hover:text-slate-900 text-sm font-medium">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.414-8.414z"/>
+                </svg>
+                Edit
+            </a>
+        </div>
+    </div>
+    
+    <!-- Recipient Info -->
+    <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
+        <div class="flex items-center space-x-4">
+            <div class="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center">
+                <span class="text-lg font-medium text-primary-700">{{ request.recipient.last_name|slice:":1" }}</span>
+            </div>
+            <div>
+                <div class="text-sm font-medium text-slate-900">{{ request.recipient.full_name }}</div>
+                <div class="text-xs text-slate-500">
+                    {{ request.recipient.department.name|default:"No department" }}
+                    {% if request.recipient.room %}, Room {{ request.recipient.room }}{% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Add Product Form -->
+    {% if request.status == 'draft' %}
+    <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
+        <h2 class="text-lg font-semibold text-slate-800 mb-4">Add Product</h2>
+        <form id="add-item-form" class="flex flex-wrap items-end gap-4">
+            {% csrf_token %}
+            <div class="flex-1 min-w-[200px]">
+                <label class="block text-sm font-medium text-slate-700 mb-1">Product</label>
+                <select id="product-select" class="w-full rounded-lg border-slate-300 shadow-sm focus:border-primary-500 focus:ring-primary-500">
+                    <option value="">Select product...</option>
+                    {% for product in products %}
+                    <option value="{{ product.id }}" data-price="{{ product.price }}" data-unit="{{ product.unit }}">
+                        {{ product.name }} ({{ product.price }} rub/{{ product.unit }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="w-32">
+                <label class="block text-sm font-medium text-slate-700 mb-1">Quantity</label>
+                <input type="number" id="quantity-input" value="1" min="0.1" step="0.1"
+                       class="w-full rounded-lg border-slate-300 shadow-sm focus:border-primary-500 focus:ring-primary-500">
+            </div>
+            <button type="submit" class="px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium rounded-lg transition-colors">
+                Add
+            </button>
+        </form>
+    </div>
+    {% endif %}
+    
+    <!-- Items List -->
+    <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-200">
+            <h2 class="text-lg font-semibold text-slate-800">Products</h2>
+        </div>
+        
+        {% if items %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200">
+                <thead class="bg-slate-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Product</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Quantity</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Price</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Total</th>
+                        {% if request.status == 'draft' %}
+                        <th class="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Actions</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-slate-200" id="items-table-body">
+                    {% for item in items %}
+                    <tr class="hover:bg-slate-50" data-item-id="{{ item.id }}">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-slate-900">{{ item.product.name }}</div>
+                            <div class="text-xs text-slate-500">{{ item.product.unit }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-slate-900">{{ item.quantity }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-slate-900">{{ item.price }} rub</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-slate-900">{{ item.total|floatformat:2 }} rub</div>
+                        </td>
+                        {% if request.status == 'draft' %}
+                        <td class="px-6 py-4 whitespace-nowrap text-right">
+                            <button onclick="removeItem({{ item.id }})" 
+                                    class="text-red-600 hover:text-red-900 text-sm">
+                                Remove
+                            </button>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="bg-slate-50">
+                    <tr>
+                        <td colspan="3" class="px-6 py-4 text-right text-sm font-medium text-slate-700">
+                            Total:
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-lg font-bold text-slate-900" id="total-amount">
+                                {{ request.total_amount|floatformat:2 }} rub
+                            </div>
+                        </td>
+                        {% if request.status == 'draft' %}
+                        <td></td>
+                        {% endif %}
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-8">
+            <p class="text-slate-500">No products added</p>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Notes -->
+    {% if request.notes %}
+    <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
+        <h3 class="text-sm font-medium text-slate-700 mb-2">Notes</h3>
+        <p class="text-slate-600">{{ request.notes }}</p>
+    </div>
+    {% endif %}
+    
+    <!-- Actions -->
+    {% if request.status == 'draft' and items %}
+    <div class="flex justify-end space-x-3">
+        <form action="{% url 'modules:submit_request' request.pk %}" method="post" id="submit-form">
+            {% csrf_token %}
+            <button type="submit" class="px-6 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-medium rounded-lg transition-colors">
+                Submit Request
+            </button>
+        </form>
+    </div>
+    {% endif %}
+</div>
+
+{% if request.status == 'draft' %}
+<script>
+// Add item
+document.getElementById('add-item-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const productSelect = document.getElementById('product-select');
+    const quantityInput = document.getElementById('quantity-input');
+    
+    const productId = productSelect.value;
+    const quantity = quantityInput.value;
+    
+    if (!productId) {
+        alert('Select a product');
+        return;
+    }
+    
+    fetch('{% url "modules:add_request_item" request.pk %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': document.querySelector('[name="csrfmiddlewaretoken"]').value
+        },
+        body: `product_id=${productId}&quantity=${quantity}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Reload page to show new item
+            location.reload();
+        } else {
+            alert(data.error || 'Error adding product');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error adding product');
+    });
+});
+
+// Remove item
+function removeItem(itemId) {
+    if (!confirm('Remove this product?')) return;
+    
+    fetch(`{% url 'modules:remove_request_item' request.pk 0 %}`.replace('/0/', `/${itemId}/`), {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name="csrfmiddlewaretoken"]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error removing product');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error removing product');
+    });
+}
+
+// Submit form
+document.getElementById('submit-form')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    fetch(this.action, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name="csrfmiddlewaretoken"]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.error || 'Error submitting request');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error submitting request');
+    });
+});
+</script>
+{% endif %}
+{% endblock %}

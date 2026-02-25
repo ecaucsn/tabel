@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'apps.services',
     'apps.recipients',
     'apps.reports',
+    'apps.modules',
 ]
 
 MIDDLEWARE = [
