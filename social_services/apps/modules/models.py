@@ -141,7 +141,8 @@ class RequestItem(models.Model):
     @property
     def total(self):
         """Сумма позиции"""
-        return self.quantity * self.price
+        from decimal import Decimal
+        return Decimal(str(self.quantity)) * self.price
     
     def save(self, *args, **kwargs):
         # Сохраняем текущую цену продукта при создании
