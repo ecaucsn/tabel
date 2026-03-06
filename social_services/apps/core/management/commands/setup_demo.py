@@ -184,17 +184,17 @@ class Command(BaseCommand):
         self.stdout.write('Создание отделений...')
         
         departments = [
-            ('1', 'Отделение №1', False),
-            ('2', 'Отделение №2', False),
-            ('3', 'Отделение №3', False),
-            ('4', 'Отделение №4', False),
-            ('mercy', 'Милосердие', True),
+            ('1', 'Отделение №1', 'residential'),
+            ('2', 'Отделение №2', 'residential'),
+            ('3', 'Отделение №3', 'residential'),
+            ('4', 'Отделение №4', 'residential'),
+            ('mercy', 'Милосердие', 'mercy'),
         ]
         
-        for code, name, is_mercy in departments:
+        for code, name, department_type in departments:
             dept, created = Department.objects.get_or_create(
                 code=code,
-                defaults={'name': name, 'is_mercy': is_mercy}
+                defaults={'name': name, 'department_type': department_type}
             )
             if created:
                 self.stdout.write(f'  Создано отделение: {name}')

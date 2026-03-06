@@ -13,5 +13,7 @@ urlpatterns = [
     path('lists/residents/', views.residents_list_page, name='residents_list'),
     path('lists/residents/print/', views.residents_list_print, name='residents_list_print'),
     path('lists/jubilees/', views.jubilees_list, name='jubilees'),
+    path('lists/consent-opd/', views.consent_opd_page, name='consent_opd'),
+    path('lists/consent-opd/<int:pk>/print/', views.consent_opd_print, name='consent_opd_print'),
     path('api/by-department/<int:department_id>/', views.recipients_by_department, name='by_department'),
 ]

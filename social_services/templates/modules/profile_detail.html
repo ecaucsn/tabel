@@ -175,7 +175,7 @@
                     <div>
                         <h4 class="text-sm font-medium text-green-800">Публичная ссылка</h4>
                         <p class="text-sm text-green-700 mt-1 break-all">
-                            {{ request.build_absolute_uri|slice:":-1" }}{% url 'modules:public_profile' profile.unique_id %}
+                            {{ request.scheme }}://{{ request.get_host }}{% url 'modules:public_profile' profile.unique_id %}
                         </p>
                     </div>
                 </div>

@@ -300,3 +300,44 @@ class TabelLock(models.Model):
     def __str__(self):
         status = "🔒" if self.is_locked else "🔓"
         return f"{status} {self.recipient} - {self.month}.{self.year}"
+
+
+class ServiceRecipient(models.Model):
+    """Назначение услуги получателю"""
+    
+    service = models.ForeignKey(
+        Service,
+        on_delete=models.CASCADE,
+        related_name='service_recipients',
+        verbose_name='Услуга'
+    )
+    recipient = models.ForeignKey(
+        'recipients.Recipient',
+        on_delete=models.CASCADE,
+        related_name='assigned_services',
+        verbose_name='Получатель услуги'
+    )
+    is_active = models.BooleanField(
+        'Активно',
+        default=True,
+        help_text='Отключите, если получатель временно не получает услугу'
+    )
+    created_at = models.DateTimeField('Создано', auto_now_add=True)
+    updated_at = models.DateTimeField('Обновлено', auto_now=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_service_recipients',
+        verbose_name='Создал'
+    )
+    
+    class Meta:
+        verbose_name = 'Назначение услуги'
+        verbose_name_plural = 'Назначения услуг'
+        unique_together = ['service', 'recipient']
+        ordering = ['service__code', 'recipient__last_name']
+    
+    def __str__(self):
+        return f"{self.service.code} - {self.recipient.short_name}"

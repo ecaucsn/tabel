@@ -63,16 +63,14 @@ def act_generator(request):
     income = request.GET.get('income', '')
     pension_payment = request.GET.get('pension', '')
     
-    # Отделения (только реальные, без специальных)
-    departments = Department.objects.filter(
-        department_type__in=['residential', 'mercy']
-    )
+    # Отделения
+    departments = Department.objects.all()
     if not user.is_admin_or_hr and user.department:
         departments = departments.filter(id=user.department.id)
     
-    # Проживающие (только активные - в отделениях проживания)
+    # Проживающие (только активные - в интернате)
     recipients = Recipient.objects.filter(
-        department__department_type__in=['residential', 'mercy']
+        placement='internat'
     )
     if department_id:
         recipients = recipients.filter(department_id=department_id)

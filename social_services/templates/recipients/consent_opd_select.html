@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+
+{% block title %}Согласие на ОПД{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <!-- Header Section -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
+        <div class="flex items-center gap-4">
+            <a href="{% url 'dashboard' %}" class="p-2 hover:bg-slate-100 rounded-lg transition-colors" title="На главную">
+                <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+            </a>
+            <div>
+                <h1 class="text-xl font-semibold text-slate-800">Согласие на обработку персональных данных</h1>
+                <p class="text-sm text-slate-500 mt-1">Выберите проживающего для формирования документа</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Filters -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
+        <div class="flex flex-wrap items-end gap-4">
+            <div class="flex flex-col">
+                <label class="text-xs font-medium text-slate-500 mb-1">Отделение</label>
+                <select id="departmentSelect"
+                        onchange="filterRecipients()"
+                        class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 min-w-[200px]">
+                    <option value="">Все отделения</option>
+                    {% for dept in departments %}
+                    <option value="{{ dept.id }}" {% if dept.id|stringformat:"s" == selected_department %}selected{% endif %}>
+                        {{ dept.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="flex flex-col">
+                <label class="text-xs font-medium text-slate-500 mb-1">Проживающий</label>
+                <select id="recipientSelect"
+                        onchange="selectRecipient()"
+                        class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 min-w-[300px]">
+                    <option value="">Выберите проживающего...</option>
+                    {% for recipient in recipients %}
+                    <option value="{{ recipient.id }}" 
+                            data-department="{{ recipient.department.id|default:'' }}"
+                            {% if recipient.id == selected_recipient.id %}selected{% endif %}>
+                        {{ recipient.full_name }}{% if recipient.department %} ({{ recipient.department.name }}{% if recipient.room %}, комн. {{ recipient.room }}{% endif %}){% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </div>
+    
+    {% if selected_recipient %}
+    <!-- Selected Recipient Card -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
+        <div class="flex items-start gap-4">
+            {% if selected_recipient.photo %}
+            <img src="{{ selected_recipient.photo.url }}" 
+                 alt="{{ selected_recipient.full_name }}"
+                 class="w-16 h-16 rounded-full object-cover">
+            {% else %}
+            <div class="w-16 h-16 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center text-white text-xl font-semibold">
+                {{ selected_recipient.full_name|slice:":1" }}
+            </div>
+            {% endif %}
+            <div class="flex-1">
+                <h2 class="text-lg font-semibold text-slate-800">{{ selected_recipient.full_name }}</h2>
+                <p class="text-sm text-slate-500 mt-1">
+                    Дата рождения: {{ selected_recipient.birth_date|date:"d.m.Y" }}
+                    {% if selected_recipient.department %} | {{ selected_recipient.department.name }}{% endif %}
+                    {% if selected_recipient.room %} | Комн. {{ selected_recipient.room }}{% endif %}
+                </p>
+            </div>
+        </div>
+        
+        <div class="mt-6 flex gap-3">
+            <a href="{% url 'recipients:consent_opd_print' selected_recipient.id %}" 
+               target="_blank"
+               class="inline-flex items-center px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium rounded-lg transition-colors">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                </svg>
+                Печать документа
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    // Фильтрация проживающих по отделению
+    function filterRecipients() {
+        const deptId = document.getElementById('departmentSelect').value;
+        const recipientSelect = document.getElementById('recipientSelect');
+        const options = recipientSelect.querySelectorAll('option');
+        
+        options.forEach(option => {
+            if (option.value === '') {
+                option.style.display = '';
+                return;
+            }
+            
+            const optionDept = option.dataset.department;
+            if (!deptId || optionDept === deptId) {
+                option.style.display = '';
+            } else {
+                option.style.display = 'none';
+            }
+        });
+        
+        // Сбрасываем выбор
+        recipientSelect.value = '';
+    }
+    
+    // Выбор проживающего - переход на страницу с параметром
+    function selectRecipient() {
+        const recipientId = document.getElementById('recipientSelect').value;
+        if (recipientId) {
+            window.location.href = '{% url "recipients:consent_opd" %}?recipient=' + recipientId;
+        }
+    }
+</script>
+{% endblock %}

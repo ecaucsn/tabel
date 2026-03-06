@@ -1,0 +1,934 @@
+{% extends 'base.html' %}
+{% load service_tags %}
+
+{% block title %}Назначение услуг - Табель{% endblock %}
+
+{% block main_container_class %}w-full px-2 sm:px-4 lg:px-6 py-4{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Full screen layout */
+    .tabel-page {
+        margin: 0;
+        padding: 0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    /* Header sections - compact */
+    .tabel-header {
+        flex-shrink: 0;
+    }
+    
+    /* Table container - fills remaining space */
+    .table-wrapper {
+        flex: 1;
+        padding: 0 0.5rem;
+        min-height: 0;
+    }
+    
+    /* Table Styles */
+    .tabel-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        font-size: 11px;
+    }
+    
+    .tabel-table th, .tabel-table td {
+        border: 1px solid #e2e8f0;
+        padding: 4px 6px;
+        text-align: center;
+        vertical-align: middle;
+    }
+    
+    .tabel-table th {
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        color: #475569;
+        font-weight: 600;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        position: sticky;
+        top: 0;
+        z-index: 20;
+    }
+    
+    .tabel-table th.bg-primary {
+        background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+        color: white;
+    }
+    
+    /* Day header - clickable */
+    .day-header {
+        cursor: pointer;
+        transition: all 0.15s ease;
+        min-width: 28px;
+        max-width: 32px;
+    }
+    
+    .day-header:hover {
+        background: #fbbf24 !important;
+        color: #78350f !important;
+    }
+    
+    /* Weekend/Holiday header */
+    .weekend-header {
+        background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%) !important;
+        color: #991b1b !important;
+    }
+    
+    /* Weekend/Holiday cell - pale background */
+    .weekend-cell {
+        background: #fff1f1 !important;
+    }
+    
+    /* Sticky Columns */
+    .recipient-info {
+        min-width: 240px;
+        max-width: 300px;
+        text-align: left !important;
+        background: #f8fafc;
+        position: sticky;
+        left: 0;
+        z-index: 15;
+    }
+    
+    th.recipient-header {
+        position: sticky;
+        left: 0;
+        z-index: 25;
+        min-width: 240px;
+    }
+    
+    /* Recipient row */
+    .recipient-row:hover {
+        background: #f1f5f9;
+    }
+    
+    .recipient-row:hover .recipient-info {
+        background: #e2e8f0;
+    }
+    
+    .recipient-name {
+        font-weight: 500;
+        color: #334155;
+        font-size: 12px;
+    }
+    
+    .recipient-details {
+        font-size: 9px;
+        color: #94a3b8;
+        margin-top: 1px;
+    }
+    
+    /* Day Cells */
+    .day-cell {
+        width: 28px;
+        height: 28px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 11px;
+        border-radius: 4px;
+        transition: all 0.15s ease;
+        background: #f8fafc;
+        color: #94a3b8;
+    }
+    
+    .day-cell:hover {
+        transform: scale(1.15);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 10;
+        position: relative;
+    }
+    
+    .day-cell.count-0 { background: #f1f5f9; color: #f1f5f9; }
+    .day-cell.count-1 { background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); color: white; }
+    .day-cell.count-2 { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; }
+    .day-cell.count-3 { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: white; }
+    .day-cell.count-4 { background: linear-gradient(135deg, #ec4899 0%, #db2777 100%); color: white; }
+    
+    .day-cell.weekend { background: #fef2f2 !important; }
+    .day-cell.weekend.count-0 { background: #fef2f2 !important; color: #fef2f2; }
+    .day-cell.weekend.count-1 { background: linear-gradient(135deg, #f87171 0%, #ef4444 100%) !important; }
+    
+    /* Total Cell */
+    .total-cell {
+        background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+        font-weight: 700;
+        color: #78350f;
+        min-width: 35px;
+        max-width: 45px;
+    }
+    
+    /* Status badges */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 1px 4px;
+        border-radius: 9999px;
+        font-size: 8px;
+        font-weight: 500;
+        margin-left: 4px;
+    }
+    
+    .status-active { background: #dcfce7; color: #166534; }
+    .status-inactive { background: #fee2e2; color: #991b1b; }
+    
+    /* Scrollable Container */
+    .table-container {
+        overflow-x: auto;
+        overflow-y: auto;
+        max-height: calc(100vh - 280px);
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        background: white;
+    }
+    
+    /* Service selector */
+    .service-selector {
+        max-height: 200px;
+        overflow-y: auto;
+    }
+    
+    .service-item {
+        padding: 6px 10px;
+        border-bottom: 1px solid #e2e8f0;
+        cursor: pointer;
+        transition: background 0.15s ease;
+    }
+    
+    .service-item:hover {
+        background: #f1f5f9;
+    }
+    
+    .service-item.selected {
+        background: #e0f2fe;
+        border-left: 3px solid #0ea5e9;
+    }
+    
+    /* Frequency badge */
+    .frequency-badge {
+        font-size: 9px;
+        padding: 1px 4px;
+        border-radius: 4px;
+        background: #e0f2fe;
+        color: #0369a1;
+    }
+    
+    /* Compact filters */
+    .compact-filter {
+        padding: 4px 8px;
+        font-size: 12px;
+    }
+    
+    /* Print Styles */
+    @media print {
+        .no-print { display: none !important; }
+        .tabel-page { margin: 0; padding: 0; }
+        .table-container { max-height: none; border: none; }
+        .tabel-table { font-size: 8px; }
+        .day-cell { width: 16px; height: 16px; font-size: 7px; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{% csrf_token %}
+<div class="tabel-page">
+    <!-- Header Section - Compact -->
+    <div class="tabel-header bg-white rounded-lg shadow-sm border border-slate-200 p-3 m-2 mb-2">
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+            <!-- Title with back button -->
+            <div class="flex items-center gap-3">
+                <a href="{% url 'dashboard' %}" class="p-1.5 hover:bg-slate-100 rounded-lg transition-colors" title="На главную">
+                    <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                    </svg>
+                </a>
+                <div>
+                    <h1 class="text-lg font-semibold text-slate-800">Назначение услуг получателям</h1>
+                    <p class="text-xs text-slate-500">Выберите услугу и заполните табель</p>
+                </div>
+            </div>
+            
+            <!-- Filters - Compact -->
+            <div class="flex flex-wrap items-center gap-2">
+                <div class="flex items-center gap-1">
+                    <label class="text-xs text-slate-500">Месяц:</label>
+                    <select id="monthSelect" onchange="applyFilters()"
+                            class="compact-filter bg-slate-50 border border-slate-200 rounded focus:ring-1 focus:ring-primary-500">
+                        {% for m, m_name in months %}
+                        <option value="{{ m }}" {% if m == month %}selected{% endif %}>{{ m_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="flex items-center gap-1">
+                    <label class="text-xs text-slate-500">Год:</label>
+                    <select id="yearSelect" onchange="applyFilters()"
+                            class="compact-filter bg-slate-50 border border-slate-200 rounded focus:ring-1 focus:ring-primary-500">
+                        {% for y in years %}
+                        <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="flex items-center gap-1">
+                    <label class="text-xs text-slate-500">Отделение:</label>
+                    <select id="departmentSelect" onchange="applyFilters()"
+                            class="compact-filter bg-slate-50 border border-slate-200 rounded focus:ring-1 focus:ring-primary-500 min-w-[120px]">
+                        <option value="">Все</option>
+                        {% for dept in departments %}
+                        <option value="{{ dept.id }}" {% if dept.id|stringformat:"s" == selected_department %}selected{% endif %}>
+                            {{ dept.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Service Selection - Compact -->
+    <div class="tabel-header bg-white rounded-lg shadow-sm border border-slate-200 p-3 mx-2 mb-2">
+        <div class="flex items-start gap-3">
+            <div class="flex-1">
+                <label class="block text-xs font-medium text-slate-600 mb-1">Выберите услугу:</label>
+                <div class="relative">
+                    <input type="text" 
+                           id="serviceSearch" 
+                           placeholder="Поиск по коду или названию..."
+                           class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+                           oninput="filterServices()">
+                </div>
+                
+                <div class="service-selector mt-1 border border-slate-200 rounded-lg" id="serviceList">
+                    {% for item in categories_with_services %}
+                    <div class="category-group">
+                        <div class="bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600 sticky top-0">
+                            {{ item.category.name }}
+                        </div>
+                        {% for service in item.services %}
+                        <div class="service-item {% if service.id == selected_service.id %}selected{% endif %}"
+                             data-service-id="{{ service.id }}"
+                             data-name="{{ service.name|lower }} {{ service.code }}"
+                             onclick="selectService({{ service.id }})">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <span class="font-bold text-primary-700 text-xs">{{ service.code }}</span>
+                                    <span class="ml-1 text-slate-700 text-xs">{{ service.name }}</span>
+                                </div>
+                                {% if service.frequency %}
+                                <span class="frequency-badge">{{ service.frequency.short_name }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% empty %}
+                    <p class="text-slate-500 text-center py-3 text-sm">Нет доступных услуг</p>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            {% if selected_service %}
+            <div class="flex-shrink-0 w-72 bg-primary-50 rounded-lg p-3 border border-primary-200">
+                <h3 class="font-semibold text-primary-800 text-sm mb-2">{{ selected_service.code }}. {{ selected_service.name }}</h3>
+                <p class="text-xs text-slate-600 mb-1">
+                    Назначено: <strong>{{ assigned_recipients|length }}</strong> получателей
+                </p>
+                {% if selected_service.max_quantity_per_month %}
+                <p class="text-xs text-amber-700 mb-2">
+                    <svg class="w-3 h-3 inline-block mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                    </svg>
+                    Лимит: <strong>{{ selected_service.max_quantity_per_month }}</strong> раз/мес
+                </p>
+                {% endif %}
+                
+                <!-- Action buttons -->
+                <div class="border-t border-primary-200 pt-2 mt-2 space-y-2">
+                    <button onclick="autofillMonth()"
+                            class="w-full px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                        Автозаполнение
+                    </button>
+                    <button onclick="clearAll()"
+                            class="w-full px-3 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                        Очистить таблицу
+                    </button>
+                </div>
+                
+                <!-- Button to open modal -->
+                <div class="border-t border-primary-200 pt-2 mt-2">
+                    <button type="button"
+                            onclick="openAddModal()"
+                            class="w-full text-center px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs rounded transition-colors">
+                        + Добавить/удалить получателей
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Table Section -->
+    <div class="table-wrapper">
+        {% if selected_service and assigned_recipients %}
+        <div class="table-container">
+            <table class="tabel-table">
+                <thead>
+                    <tr>
+                        <th class="day-header bg-primary" style="width: 30px;">№</th>
+                        <th class="recipient-header bg-primary">Получатель (дата рождения, статус, место)</th>
+                        {% for day in days_in_month|get_range %}
+                        <th class="day-header {% if day in weekends or day in holiday_days %}weekend-header{% endif %}"
+                            data-day="{{ day }}"
+                            onclick="clearColumn({{ day }})"
+                            title="Клик — очистить столбец">{{ day }}</th>
+                        {% endfor %}
+                        <th class="day-header bg-primary" onclick="clearAll()" title="Клик — очистить всё">Ит</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for assignment in assigned_recipients %}
+                    <tr class="recipient-row" data-recipient-id="{{ assignment.recipient.id }}">
+                        <td class="text-center text-slate-500 text-sm">{{ forloop.counter }}</td>
+                        <td class="recipient-info">
+                            <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                <span class="font-medium">{{ assignment.recipient.full_name }}</span>
+                                <span class="text-slate-400">•</span>
+                                <span class="text-slate-600">{{ assignment.recipient.birth_date|date:"d.m.Y" }}</span>
+                                <span class="status-badge {% if assignment.is_active %}status-active{% else %}status-inactive{% endif %}">
+                                    {% if assignment.is_active %}Активен{% else %}Приост.{% endif %}
+                                </span>
+                                {% if assignment.recipient.department %}
+                                <span class="text-slate-400">•</span>
+                                <span class="text-slate-600">{{ assignment.recipient.department.name }}</span>
+                                {% endif %}
+                                {% if assignment.recipient.room %}
+                                <span class="text-slate-400">•</span>
+                                <span class="text-slate-600">км.{{ assignment.recipient.room }}</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        
+                        {% for day in days_in_month|get_range %}
+                        {% with recipient_id=assignment.recipient.id %}
+                        <td class="day-cell count-0 {% if day in weekends or day in holiday_days %}weekend-cell{% endif %}"
+                            id="cell-{{ recipient_id }}-{{ day }}"
+                            data-recipient="{{ recipient_id }}"
+                            data-day="{{ day }}"
+                            onclick="toggleCell({{ recipient_id }}, {{ day }})"
+                            title="Клик — переключить">
+                        </td>
+                        {% endwith %}
+                        {% endfor %}
+                        
+                        <td class="total-cell" id="total-{{ assignment.recipient.id }}">0</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% elif selected_service %}
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-8 text-center">
+            <svg class="w-12 h-12 text-slate-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+            </svg>
+            <p class="text-slate-500 mb-3 text-sm">Нет назначенных получателей для данной услуги</p>
+            <button type="button"
+                    onclick="openAddModal()"
+                    class="inline-flex items-center px-3 py-1.5 bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium rounded-lg transition-colors">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                Добавить получателей
+            </button>
+        </div>
+        {% else %}
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-8 text-center">
+            <svg class="w-12 h-12 text-slate-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+            </svg>
+            <p class="text-slate-500 text-sm">Выберите услугу из списка выше для заполнения табеля</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Модальное окно добавления получателей -->
+<div id="addModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden">
+        <div class="p-4 border-b border-slate-200 flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-slate-800">Добавить получателей</h3>
+            <button onclick="closeAddModal()" class="text-slate-400 hover:text-slate-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        
+        <form id="addForm" onsubmit="submitAddRecipients(event)">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_recipients">
+            
+            <div class="p-4 space-y-4 overflow-y-auto max-h-[60vh]">
+                <!-- Поиск и фильтр получателей -->
+                <div class="flex gap-2">
+                    <input type="text" id="recipientSearch" placeholder="Поиск по ФИО..."
+                           class="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                    <select id="departmentFilter" class="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                        <option value="">Все отделения</option>
+                        {% for dept in departments %}
+                        <option value="{{ dept.id }}">{{ dept.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Список получателей -->
+                <div class="border border-slate-200 rounded-lg overflow-hidden">
+                    <div class="bg-slate-50 px-3 py-2 border-b border-slate-200 flex items-center">
+                        <input type="checkbox" id="selectAllRecipients" class="mr-2 rounded border-slate-300">
+                        <label for="selectAllRecipients" class="text-sm text-slate-600">Выбрать всех</label>
+                    </div>
+                    {% if selected_service %}
+                    <div class="bg-amber-50 px-3 py-2 border-b border-amber-200 text-xs text-amber-700">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        Отображаются только проживающие, у которых услуга «{{ selected_service.name }}» есть в активном ИППСУ
+                    </div>
+                    {% endif %}
+                    <div class="max-h-80 overflow-y-auto" id="recipientsList">
+                        {% for recipient in all_recipients %}
+                        <label class="flex items-center px-3 py-2 hover:bg-slate-50 cursor-pointer recipient-item"
+                               data-name="{{ recipient.full_name|lower }}"
+                               data-department="{{ recipient.department.id }}">
+                            <input type="checkbox" name="recipients" value="{{ recipient.id }}"
+                                   class="mr-3 rounded border-slate-300"
+                                   {% if recipient.id in assigned_recipient_ids %}checked data-assigned="true"{% endif %}>
+                            <div class="flex-1">
+                                <div class="text-sm font-medium text-slate-700">{{ recipient.full_name }}</div>
+                                <div class="text-xs text-slate-500">{{ recipient.department.name|default:"-" }}{% if recipient.room %}, ком. {{ recipient.room }}{% endif %}</div>
+                            </div>
+                            {% if recipient.id in assigned_recipient_ids %}
+                            <span class="text-xs text-red-400">назначен (снять галочку для удаления)</span>
+                            {% endif %}
+                        </label>
+                        {% empty %}
+                        <div class="p-4 text-center">
+                            {% if selected_service %}
+                            <p class="text-amber-600 text-sm mb-2">Нет проживающих с этой услугой в ИППСУ</p>
+                            <p class="text-slate-400 text-xs">Добавьте услугу в ИППСУ проживающих, чтобы они стали доступны для назначения</p>
+                            {% else %}
+                            <p class="text-slate-500 text-sm">Выберите услугу для отображения списка получателей</p>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="p-4 border-t border-slate-200 flex justify-end space-x-3">
+                <button type="button" onclick="closeAddModal()" class="px-4 py-2 text-slate-700 hover:text-slate-900 text-sm font-medium">
+                    Отмена
+                </button>
+                <button type="submit" class="px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium rounded-lg transition-colors">
+                    Добавить выбранных
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Service logs data
+const serviceLogs = {{ service_logs|safe|default:"{}" }};
+const selectedServiceId = {{ selected_service.id|default:"null" }};
+const year = {{ year }};
+const month = {{ month }};
+const daysInMonth = {{ days_in_month }};
+const weekends = {{ weekends|safe|default:"[]" }};
+const maxPerMonth = {{ max_per_month|default:"null" }};
+
+// Initialize cells on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Restore saved data
+    Object.keys(serviceLogs).forEach(recipientId => {
+        const days = serviceLogs[recipientId];
+        Object.keys(days).forEach(day => {
+            const quantity = days[day];
+            const cell = document.getElementById(`cell-${recipientId}-${day}`);
+            if (cell) {
+                updateCellDisplay(cell, quantity);
+            }
+        });
+        // Update total
+        updateTotal(recipientId);
+    });
+});
+
+// Filter services by search text
+function filterServices() {
+    const search = document.getElementById('serviceSearch').value.toLowerCase();
+    document.querySelectorAll('.service-item').forEach(item => {
+        const name = item.dataset.name;
+        item.style.display = name.includes(search) ? '' : 'none';
+    });
+}
+
+// Select service
+function selectService(serviceId) {
+    const url = new URL(window.location);
+    url.searchParams.set('service', serviceId);
+    window.location = url;
+}
+
+// Apply filters
+function applyFilters() {
+    const year = document.getElementById('yearSelect').value;
+    const month = document.getElementById('monthSelect').value;
+    const department = document.getElementById('departmentSelect').value;
+    
+    const url = new URL(window.location);
+    url.searchParams.set('year', year);
+    url.searchParams.set('month', month);
+    if (department) {
+        url.searchParams.set('department', department);
+    } else {
+        url.searchParams.delete('department');
+    }
+    
+    window.location = url;
+}
+
+// Toggle cell
+function toggleCell(recipientId, day) {
+    const cell = document.getElementById(`cell-${recipientId}-${day}`);
+    if (!cell) return;
+    
+    // Get current count
+    let count = 0;
+    if (cell.classList.contains('count-1')) count = 1;
+    else if (cell.classList.contains('count-2')) count = 2;
+    else if (cell.classList.contains('count-3')) count = 3;
+    else if (cell.classList.contains('count-4')) count = 4;
+    
+    // Cycle: 0 -> 1 -> 0
+    const newCount = count >= 1 ? 0 : 1;
+    
+    // Check limit on client side before saving
+    if (newCount > 0 && maxPerMonth) {
+        const currentTotal = getCurrentTotal(recipientId);
+        if (currentTotal >= maxPerMonth) {
+            alert(`Достигнут лимит услуги: ${maxPerMonth} раз в месяц. Сначала удалите существующие записи.`);
+            return;
+        }
+    }
+    
+    // Save to server
+    saveCell(recipientId, day, newCount, cell);
+}
+
+// Get current total for recipient
+function getCurrentTotal(recipientId) {
+    let total = 0;
+    for (let day = 1; day <= daysInMonth; day++) {
+        const cell = document.getElementById(`cell-${recipientId}-${day}`);
+        if (cell) {
+            if (cell.classList.contains('count-1')) total += 1;
+            else if (cell.classList.contains('count-2')) total += 2;
+            else if (cell.classList.contains('count-3')) total += 3;
+            else if (cell.classList.contains('count-4')) total += 4;
+        }
+    }
+    return total;
+}
+
+// Save cell to server
+function saveCell(recipientId, day, quantity, cell) {
+    fetch('', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: `action=toggle_service&recipient_id=${recipientId}&day=${day}&quantity=${quantity}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            updateCellDisplay(cell, quantity);
+            updateTotal(recipientId);
+        } else {
+            alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Ошибка соединения');
+    });
+}
+
+// Update cell display
+function updateCellDisplay(cell, quantity) {
+    // Remove all count classes
+    cell.classList.remove('count-0', 'count-1', 'count-2', 'count-3', 'count-4');
+    
+    // Add new count class
+    const countClass = quantity > 4 ? 4 : quantity;
+    cell.classList.add(`count-${countClass}`);
+    
+    // Update text
+    cell.textContent = quantity > 0 ? quantity : '';
+}
+
+// Update total for recipient
+function updateTotal(recipientId) {
+    let total = 0;
+    for (let day = 1; day <= daysInMonth; day++) {
+        const cell = document.getElementById(`cell-${recipientId}-${day}`);
+        if (cell) {
+            if (cell.classList.contains('count-1')) total += 1;
+            else if (cell.classList.contains('count-2')) total += 2;
+            else if (cell.classList.contains('count-3')) total += 3;
+            else if (cell.classList.contains('count-4')) total += 4;
+        }
+    }
+    
+    const totalCell = document.getElementById(`total-${recipientId}`);
+    if (totalCell) {
+        totalCell.textContent = total;
+    }
+}
+
+// Clear column - optimized with single server request
+function clearColumn(day) {
+    if (!confirm(`Очистить все услуги за ${day}-е число?`)) return;
+    
+    // Send request to server
+    fetch('', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: `action=clear_column&day=${day}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Reload page to show updated data
+            window.location.reload();
+        } else {
+            alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    });
+}
+
+// Clear all - optimized with single server request
+function clearAll() {
+    const btn = event.target.closest('button');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Очистка...';
+    btn.disabled = true;
+    
+    // Send request to server
+    fetch('', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: 'action=clear_all'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Reload page to show updated data
+            window.location.reload();
+        } else {
+            console.error('Ошибка:', data.error || 'Неизвестная ошибка');
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    });
+}
+
+// Autofill month based on schedule and frequency
+function autofillMonth() {
+    // Show loading state
+    const btn = event.target.closest('button');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Заполнение...';
+    btn.disabled = true;
+    
+    fetch('', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: 'action=autofill_month'
+    })
+    .then(response => {
+        console.log('Response status:', response.status);
+        return response.json();
+    })
+    .then(data => {
+        console.log('Response data:', data);
+        if (data.success) {
+            // Reload page to show all filled data
+            window.location.reload();
+        } else {
+            console.error('Ошибка:', data.error || 'Неизвестная ошибка');
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    });
+}
+
+// Modal functions
+function openAddModal() {
+    document.getElementById('addModal').classList.remove('hidden');
+}
+
+function closeAddModal() {
+    document.getElementById('addModal').classList.add('hidden');
+}
+
+// Submit add recipients form via AJAX
+function submitAddRecipients(event) {
+    event.preventDefault();
+    
+    // Get recipients to add (newly checked)
+    const recipientsToAdd = [];
+    // Get recipients to remove (was assigned, now unchecked)
+    const recipientsToRemove = [];
+    
+    document.querySelectorAll('#recipientsList input[type="checkbox"]').forEach(cb => {
+        const isAssigned = cb.hasAttribute('data-assigned');
+        const isChecked = cb.checked;
+        
+        if (isChecked && !isAssigned) {
+            // New recipient to add
+            recipientsToAdd.push(cb.value);
+        } else if (!isChecked && isAssigned) {
+            // Assigned recipient to remove
+            recipientsToRemove.push(cb.value);
+        }
+    });
+    
+    // Build form data
+    const formData = new URLSearchParams();
+    formData.append('action', 'update_recipients');
+    recipientsToAdd.forEach(id => {
+        formData.append('add_recipients', id);
+    });
+    recipientsToRemove.forEach(id => {
+        formData.append('remove_recipients', id);
+    });
+    
+    // Submit via fetch
+    fetch('', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData.toString()
+    })
+    .then(response => {
+        console.log('Response status:', response.status);
+        return response.json();
+    })
+    .then(data => {
+        console.log('Response data:', data);
+        if (data.success) {
+            // Close modal and reload page to show changes
+            closeAddModal();
+            window.location.reload();
+        } else {
+            // Показываем ошибку пользователю
+            let errorMsg = data.error || 'Неизвестная ошибка';
+            
+            // Специальное сообщение для отсутствия услуги в ИППСУ
+            if (data.no_contract) {
+                errorMsg = 'Невозможно добавить: ' + errorMsg;
+                alert('Ошибка!\n\n' + errorMsg + '\n\nДля добавления проживающего в табель необходимо сначала добавить эту услугу в его ИППСУ.');
+            } else if (data.locked) {
+                alert('Ошибка!\n\n' + errorMsg + '\n\nРазблокируйте табель для редактирования.');
+            } else {
+                alert('Ошибка: ' + errorMsg);
+            }
+            console.error('Ошибка:', errorMsg);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    });
+}
+
+// Select all recipients
+const selectAllRecipients = document.getElementById('selectAllRecipients');
+if (selectAllRecipients) {
+    selectAllRecipients.addEventListener('change', function(e) {
+        const checkboxes = document.querySelectorAll('#recipientsList input[type="checkbox"]:not(:disabled)');
+        checkboxes.forEach(cb => cb.checked = e.target.checked);
+    });
+}
+
+// Filter recipients
+function filterRecipients() {
+    const search = document.getElementById('recipientSearch').value.toLowerCase();
+    const deptFilter = document.getElementById('departmentFilter').value;
+    
+    document.querySelectorAll('.recipient-item').forEach(item => {
+        const name = item.dataset.name;
+        const dept = item.dataset.department;
+        
+        const matchesSearch = name.includes(search);
+        const matchesDept = !deptFilter || dept === deptFilter;
+        
+        item.style.display = (matchesSearch && matchesDept) ? '' : 'none';
+    });
+}
+
+const recipientSearch = document.getElementById('recipientSearch');
+if (recipientSearch) {
+    recipientSearch.addEventListener('input', filterRecipients);
+}
+
+const departmentFilter = document.getElementById('departmentFilter');
+if (departmentFilter) {
+    departmentFilter.addEventListener('change', filterRecipients);
+}
+
+// Close modal on outside click
+const addModal = document.getElementById('addModal');
+if (addModal) {
+    addModal.addEventListener('click', function(e) {
+        if (e.target === this) closeAddModal();
+    });
+}
+</script>
+{% endblock %}

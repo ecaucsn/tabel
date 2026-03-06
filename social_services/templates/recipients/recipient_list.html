@@ -9,7 +9,7 @@
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
             <h1 class="text-2xl font-semibold text-slate-800">Проживающие</h1>
-            <p class="text-slate-500 mt-1">Всего: {{ recipients.count }} человек</p>
+            <p class="text-slate-500 mt-1">Всего: {{ recipients|length }} человек</p>
         </div>
         
         {% if user.is_admin_or_hr %}
@@ -96,15 +96,19 @@
                     </div>
                     {% endif %}
                     <!-- Статус под фото - кликабельный -->
-                    <button onclick="openStatusModal({{ recipient.id }})" 
+                    <button onclick="openStatusModal({{ recipient.id }})"
                             class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium mt-2 cursor-pointer hover:ring-2 hover:ring-primary-300 transition-all status-badge
-                                {% if recipient.status == 'active' %}bg-green-100 text-green-800 hover:bg-green-200
-                                {% elif recipient.status == 'vacation' %}bg-yellow-100 text-yellow-800 hover:bg-yellow-200
-                                {% elif recipient.status == 'hospital' %}bg-blue-100 text-blue-800 hover:bg-blue-200
-                                {% elif recipient.status == 'deceased' %}bg-red-100 text-red-800 hover:bg-red-200
+                                {% if recipient.current_placement == 'internat' %}bg-green-100 text-green-800 hover:bg-green-200
+                                {% elif recipient.current_placement == 'vacation' %}bg-yellow-100 text-yellow-800 hover:bg-yellow-200
+                                {% elif recipient.current_placement == 'hospital' %}bg-blue-100 text-blue-800 hover:bg-blue-200
+                                {% elif recipient.current_placement == 'discharged' %}bg-red-100 text-red-800 hover:bg-red-200
                                 {% else %}bg-slate-100 text-slate-800 hover:bg-slate-200{% endif %}"
                             title="Нажмите для изменения статуса">
-                        {{ recipient.status_display }}
+                        {% if recipient.current_placement == 'internat' %}Проживает
+                        {% elif recipient.current_placement == 'vacation' %}В отпуске
+                        {% elif recipient.current_placement == 'hospital' %}В больнице
+                        {% elif recipient.current_placement == 'discharged' %}Выбыл
+                        {% else %}Проживает{% endif %}
                     </button>
                 </div>
                 
@@ -127,10 +131,12 @@
                     </div>
                     {% endif %}
                     
-                    <!-- Отделение и Комната -->
+                    <!-- Отделение и Комната - только для internat -->
+                    {% if recipient.current_placement == 'internat' %}
                     <div class="text-xs text-slate-600 mb-1">
-                        Отделение: {{ recipient.department.name|default:"—" }}{% if recipient.room %}, комн. {{ recipient.room }}{% endif %}
+                        Отделение: {{ recipient.current_department.name|default:"—" }}{% if recipient.current_room %}, комн. {{ recipient.current_room }}{% endif %}
                     </div>
+                    {% endif %}
                     
                     <!-- Кнопки ИППСУ, Табель, Акт и Редактирование -->
                     <div class="flex items-center justify-end gap-2 mt-auto pt-2">
@@ -177,6 +183,41 @@
         </div>
         {% endfor %}
     </div>
+    
+    <!-- Пагинация -->
+    {% if paginator.num_pages > 1 %}
+    <div class="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="text-sm text-slate-600">
+            Показано {{ page_obj.start_index }} - {{ page_obj.end_index }} из {{ paginator.count }}
+        </div>
+        <div class="flex items-center gap-2">
+            {% if page_obj.has_previous %}
+            <a href="?page={{ page_obj.previous_page_number }}&{% if selected_dept %}department={{ selected_dept }}&{% endif %}{% if selected_dept_type %}dept_type={{ selected_dept_type }}&{% endif %}{% if search_query %}search={{ search_query }}&{% endif %}sort={{ sort_field }}&dir={{ sort_direction }}"
+               class="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                ← Назад
+            </a>
+            {% endif %}
+            
+            <div class="flex items-center gap-1">
+                {% for num in paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <span class="px-3 py-2 bg-primary-500 text-white rounded-lg text-sm font-medium">{{ num }}</span>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <a href="?page={{ num }}&{% if selected_dept %}department={{ selected_dept }}&{% endif %}{% if selected_dept_type %}dept_type={{ selected_dept_type }}&{% endif %}{% if search_query %}search={{ search_query }}&{% endif %}sort={{ sort_field }}&dir={{ sort_direction }}"
+                       class="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition-colors">{{ num }}</a>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            
+            {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}&{% if selected_dept %}department={{ selected_dept }}&{% endif %}{% if selected_dept_type %}dept_type={{ selected_dept_type }}&{% endif %}{% if search_query %}search={{ search_query }}&{% endif %}sort={{ sort_field }}&dir={{ sort_direction }}"
+               class="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                Вперёд →
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 <!-- Модальное окно изменения статуса -->
@@ -184,7 +225,7 @@
     <div class="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
         <div class="p-6">
             <div class="flex items-center justify-between mb-4">
-                <h3 class="text-lg font-semibold text-slate-800">Изменение статуса</h3>
+                <h3 class="text-lg font-semibold text-slate-800">Изменение размещения</h3>
                 <button onclick="closeStatusModal()" class="text-slate-400 hover:text-slate-600">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -201,22 +242,34 @@
                     <p class="text-xs text-slate-500" id="recipientInfo"></p>
                 </div>
                 
-                <!-- Новое отделение -->
+                <!-- Размещение -->
                 <div class="mb-4">
-                    <label class="block text-sm font-medium text-slate-700 mb-1">Новое отделение/статус</label>
-                    <select id="newDepartment" name="department" required
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Размещение</label>
+                    <select id="newPlacement" name="placement" required onchange="onPlacementChange()"
+                            class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                        <option value="internat">Интернат (проживает)</option>
+                        <option value="vacation">Отпуск</option>
+                        <option value="hospital">Больница</option>
+                        <option value="discharged">Выбыл</option>
+                    </select>
+                </div>
+                
+                <!-- Отделение (только для интерната) -->
+                <div class="mb-4" id="departmentField">
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Отделение</label>
+                    <select id="newDepartment" name="department"
                             class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
                         <option value="">Выберите отделение</option>
                         {% for dept in all_departments %}
-                        <option value="{{ dept.id }}" data-type="{{ dept.department_type }}">
-                            {{ dept.name }}
-                        </option>
+                        {% if dept.department_type in 'residential,mercy' %}
+                        <option value="{{ dept.id }}">{{ dept.name }}</option>
+                        {% endif %}
                         {% endfor %}
                     </select>
                 </div>
                 
-                <!-- Комната -->
-                <div class="mb-4">
+                <!-- Комната (только для интерната) -->
+                <div class="mb-4" id="roomField">
                     <label class="block text-sm font-medium text-slate-700 mb-1">Комната</label>
                     <input type="text" id="newRoom" name="room"
                            class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
@@ -235,7 +288,7 @@
                     <label class="block text-sm font-medium text-slate-700 mb-1">Причина изменения</label>
                     <textarea id="changeReason" name="reason" rows="2"
                               class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                              placeholder="Укажите причину изменения статуса"></textarea>
+                              placeholder="Укажите причину изменения"></textarea>
                 </div>
                 
                 <!-- Кнопки -->
@@ -263,10 +316,11 @@ const recipientsData = {
     {% for recipient in recipients %}
     {{ recipient.id }}: {
         name: '{{ recipient.full_name }}',
-        department: {{ recipient.department.id|default:'null' }},
-        departmentName: '{{ recipient.department.name|default:"" }}',
-        room: '{{ recipient.room|default:"" }}',
-        status: '{{ recipient.status }}'
+        department: {% if recipient.current_department %}{{ recipient.current_department.id }}{% else %}null{% endif %},
+        departmentName: '{% if recipient.current_department %}{{ recipient.current_department.name }}{% endif %}',
+        room: '{{ recipient.current_room|default:"" }}',
+        placement: '{{ recipient.current_placement }}',
+        placementDisplay: '{% if recipient.current_placement == "internat" %}Проживает{% elif recipient.current_placement == "vacation" %}В отпуске{% elif recipient.current_placement == "hospital" %}В больнице{% elif recipient.current_placement == "discharged" %}Выбыл{% else %}{{ recipient.current_placement }}{% endif %}'
     },
     {% endfor %}
 };
@@ -297,6 +351,21 @@ function filterRecipientsDebounced() {
     searchTimeout = setTimeout(filterRecipients, 500);
 }
 
+function onPlacementChange() {
+    const placement = document.getElementById('newPlacement').value;
+    const departmentField = document.getElementById('departmentField');
+    const roomField = document.getElementById('roomField');
+    
+    // Показываем отделение и комнату только для интерната
+    if (placement === 'internat') {
+        departmentField.style.display = 'block';
+        roomField.style.display = 'block';
+    } else {
+        departmentField.style.display = 'none';
+        roomField.style.display = 'none';
+    }
+}
+
 function openStatusModal(recipientId) {
     currentRecipientId = recipientId;
     const recipient = recipientsData[recipientId];
@@ -308,13 +377,21 @@ function openStatusModal(recipientId) {
     
     document.getElementById('recipientId').value = recipientId;
     document.getElementById('recipientName').textContent = recipient.name;
-    document.getElementById('recipientInfo').textContent = `Отделение: ${recipient.departmentName}, Комната: ${recipient.room || '—'}`;
-    document.getElementById('newRoom').value = recipient.room;
+    document.getElementById('recipientInfo').textContent =
+        `Размещение: ${recipient.placementDisplay}` +
+        (recipient.placement === 'internat' ? `, Отделение: ${recipient.departmentName}, Комната: ${recipient.room || '—'}` : '');
     
-    // Устанавливаем текущее отделение по умолчанию
+    // Устанавливаем текущее размещение
+    document.getElementById('newPlacement').value = recipient.placement;
+    
+    // Устанавливаем отделение и комнату
+    document.getElementById('newRoom').value = recipient.room || '';
     if (recipient.department) {
         document.getElementById('newDepartment').value = recipient.department;
     }
+    
+    // Показываем/скрываем поля в зависимости от размещения
+    onPlacementChange();
     
     // Устанавливаем текущую дату
     const today = new Date().toISOString().split('T')[0];
@@ -335,11 +412,14 @@ async function submitStatusChange(event) {
     event.preventDefault();
     
     const recipientId = document.getElementById('recipientId').value;
+    const placement = document.getElementById('newPlacement').value;
     const departmentId = document.getElementById('newDepartment').value;
     const room = document.getElementById('newRoom').value;
     const reason = document.getElementById('changeReason').value;
-    
-    if (!departmentId) {
+    const changeDate = document.getElementById('changeDate').value;
+
+    // Для интерната требуется отделение
+    if (placement === 'internat' && !departmentId) {
         alert('Выберите отделение');
         return;
     }
@@ -352,9 +432,11 @@ async function submitStatusChange(event) {
                 'X-CSRFToken': getCsrfToken()
             },
             body: JSON.stringify({
+                placement: placement,
                 department_id: departmentId,
                 room: room,
-                reason: reason
+                reason: reason,
+                change_date: changeDate
             })
         });
         
@@ -364,7 +446,7 @@ async function submitStatusChange(event) {
             // Перезагружаем страницу для отображения изменений
             window.location.reload();
         } else {
-            alert('Ошибка: ' + (data.error || 'Не удалось изменить статус'));
+            alert('Ошибка: ' + (data.error || 'Не удалось изменить размещение'));
         }
     } catch (error) {
         alert('Ошибка соединения: ' + error.message);

@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
-from .models import Recipient, Contract, ContractService, StatusHistory, PlacementHistory, MonthlyRecipientData
+from .models import Recipient, Contract, ContractService, RecipientHistory, MonthlyRecipientData
 
 
 class ContractServiceInline(admin.TabularInline):
@@ -11,24 +11,18 @@ class ContractServiceInline(admin.TabularInline):
     fields = ['service']
 
 
-class StatusHistoryInline(admin.TabularInline):
-    model = StatusHistory
+class RecipientHistoryInline(admin.TabularInline):
+    """Инлайн для отображения истории изменений в карточке получателя"""
+    model = RecipientHistory
     extra = 0
-    readonly_fields = ['old_department', 'new_department', 'old_status', 'new_status', 'changed_by', 'reason', 'created_at']
-    fields = ['old_department', 'new_department', 'old_status', 'new_status', 'changed_by', 'reason', 'created_at']
+    readonly_fields = ['change_type_display', 'old_department', 'new_department', 'old_room', 'new_room', 
+                       'old_status', 'new_status', 'reason', 'date', 'changed_by', 'created_at']
+    fields = ['change_type_display', 'old_department', 'new_department', 'old_room', 'new_room', 
+              'old_status', 'new_status', 'reason', 'date', 'changed_by', 'created_at']
     
-    def has_add_permission(self, request, obj=None):
-        return False
-    
-    def has_change_permission(self, request, obj=None):
-        return False
-
-
-class PlacementHistoryInline(admin.TabularInline):
-    model = PlacementHistory
-    extra = 0
-    readonly_fields = ['old_department', 'new_department', 'old_room', 'new_room', 'old_status', 'new_status', 'reason', 'date', 'changed_by', 'created_at']
-    fields = ['old_department', 'new_department', 'old_room', 'new_room', 'old_status', 'new_status', 'reason', 'date', 'changed_by', 'created_at']
+    def change_type_display(self, obj):
+        return obj.change_type_display
+    change_type_display.short_description = 'Тип изменения'
     
     def has_add_permission(self, request, obj=None):
         return False
@@ -44,7 +38,7 @@ class RecipientAdmin(admin.ModelAdmin):
     search_fields = ['last_name', 'first_name', 'patronymic']
     list_editable = ['room']
     date_hierarchy = 'admission_date'
-    inlines = [StatusHistoryInline, PlacementHistoryInline]
+    inlines = [RecipientHistoryInline]
     
     fieldsets = (
         ('Персональные данные', {
@@ -122,22 +116,53 @@ class ContractServiceAdmin(admin.ModelAdmin):
     service_limit_display.short_description = 'Ограничение услуги'
 
 
-@admin.register(StatusHistory)
-class StatusHistoryAdmin(admin.ModelAdmin):
-    list_display = ['recipient', 'old_department', 'new_department', 'old_status', 'new_status', 'changed_by', 'created_at']
-    list_filter = ['new_status', 'created_at']
-    search_fields = ['recipient__last_name', 'recipient__first_name']
-    date_hierarchy = 'created_at'
-    readonly_fields = ['recipient', 'old_department', 'new_department', 'old_status', 'new_status', 'changed_by', 'reason', 'created_at']
-
-
-@admin.register(PlacementHistory)
-class PlacementHistoryAdmin(admin.ModelAdmin):
-    list_display = ['recipient', 'old_department', 'new_department', 'old_room', 'new_room', 'date', 'changed_by']
-    list_filter = ['date', 'old_department', 'new_department']
+@admin.register(RecipientHistory)
+class RecipientHistoryAdmin(admin.ModelAdmin):
+    """Админка для единой истории изменений"""
+    list_display = ['recipient', 'date', 'placement_change_display', 'department_change_display',
+                    'room_change_display', 'reason', 'changed_by']
+    list_filter = ['date', 'new_placement', 'new_department']
     search_fields = ['recipient__last_name', 'recipient__first_name', 'reason']
     date_hierarchy = 'date'
-    readonly_fields = ['recipient', 'old_department', 'new_department', 'old_room', 'new_room', 'old_status', 'new_status', 'reason', 'date', 'changed_by', 'created_at']
+    readonly_fields = ['recipient', 'old_placement', 'new_placement', 'old_department', 'new_department',
+                       'old_room', 'new_room', 'old_status', 'new_status', 'reason', 'date', 'changed_by', 'created_at']
+    
+    def placement_change_display(self, obj):
+        """Отображение изменения размещения"""
+        if obj.old_placement and obj.new_placement:
+            old = obj.get_placement_display_value(obj.old_placement)
+            new = obj.get_placement_display_value(obj.new_placement)
+            if obj.old_placement != obj.new_placement:
+                return format_html('<span style="color: #666;">{}</span> → <strong>{}</strong>', old, new)
+            return new
+        elif obj.new_placement:
+            return obj.get_placement_display_value(obj.new_placement)
+        return '—'
+    placement_change_display.short_description = 'Размещение'
+    
+    def department_change_display(self, obj):
+        """Отображение изменения отделения"""
+        if obj.old_department and obj.new_department:
+            if obj.old_department != obj.new_department:
+                return format_html('<span style="color: #666;">{}</span> → <strong>{}</strong>',
+                                   obj.old_department.name, obj.new_department.name)
+            return obj.new_department.name
+        elif obj.new_department:
+            return obj.new_department.name
+        return '—'
+    department_change_display.short_description = 'Отделение'
+    
+    def room_change_display(self, obj):
+        """Отображение изменения комнаты"""
+        if obj.old_room and obj.new_room:
+            if obj.old_room != obj.new_room:
+                return format_html('<span style="color: #666;">{}</span> → <strong>{}</strong>',
+                                   obj.old_room, obj.new_room)
+            return obj.new_room
+        elif obj.new_room:
+            return obj.new_room
+        return '—'
+    room_change_display.short_description = 'Комната'
 
 
 @admin.register(MonthlyRecipientData)

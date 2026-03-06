@@ -237,3 +237,255 @@ class DigitalProfile(models.Model):
         # Генерируем QR-код при создании, если его нет
         if not self.qr_code:
             self.generate_qr_code()
+
+
+# ==================== Pension Models ====================
+
+class PensionAccount(models.Model):
+    """Пенсионный счёт проживающего"""
+    
+    recipient = models.OneToOneField(
+        Recipient,
+        on_delete=models.CASCADE,
+        related_name='pension_account',
+        verbose_name='Получатель услуг'
+    )
+    pension_type = models.CharField(
+        'Тип пенсии',
+        max_length=100,
+        blank=True,
+        help_text='Например: страховая, социальная, по инвалидности'
+    )
+    pension_number = models.CharField(
+        'Номер пенсионного дела',
+        max_length=50,
+        blank=True
+    )
+    monthly_pension_amount = models.DecimalField(
+        'Ежемесячная сумма пенсии',
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        help_text='Базовая ежемесячная сумма пенсии'
+    )
+    balance = models.DecimalField(
+        'Текущий баланс',
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        help_text='Накопленная сумма на счёте'
+    )
+    notes = models.TextField('Примечания', blank=True)
+    created_at = models.DateTimeField('Создано', auto_now_add=True)
+    updated_at = models.DateTimeField('Обновлено', auto_now=True)
+    
+    class Meta:
+        verbose_name = 'Пенсионный счёт'
+        verbose_name_plural = 'Пенсионные счета'
+    
+    def __str__(self):
+        return f"Пенсионный счёт: {self.recipient}"
+    
+    def get_monthly_accrual(self, year, month):
+        """Получить начисление за месяц"""
+        return self.accruals.filter(year=year, month=month).first()
+    
+    def get_monthly_expenses(self, year, month):
+        """Получить расходы за месяц"""
+        return self.expenses.filter(year=year, month=month)
+    
+    def get_monthly_expenses_total(self, year, month):
+        """Общая сумма расходов за месяц"""
+        return self.expenses.filter(year=year, month=month).aggregate(
+            total=models.Sum('amount')
+        )['total'] or 0
+    
+    def recalculate_balance(self):
+        """Пересчитать баланс на основе всех операций"""
+        from decimal import Decimal
+        total_accruals = self.accruals.aggregate(
+            total=models.Sum('amount')
+        )['total'] or Decimal('0')
+        total_expenses = self.expenses.aggregate(
+            total=models.Sum('amount')
+        )['total'] or Decimal('0')
+        self.balance = total_accruals - total_expenses
+        self.save(update_fields=['balance'])
+        return self.balance
+
+
+class PensionAccrual(models.Model):
+    """Начисление пенсии"""
+    
+    account = models.ForeignKey(
+        PensionAccount,
+        on_delete=models.CASCADE,
+        related_name='accruals',
+        verbose_name='Пенсионный счёт'
+    )
+    year = models.IntegerField('Год')
+    month = models.IntegerField('Месяц')
+    amount = models.DecimalField(
+        'Сумма начисления',
+        max_digits=10,
+        decimal_places=2,
+        help_text='Сумма начисленной пенсии'
+    )
+    accrued_date = models.DateField(
+        'Дата начисления',
+        null=True,
+        blank=True,
+        help_text='Дата фактического начисления'
+    )
+    source = models.CharField(
+        'Источник',
+        max_length=100,
+        blank=True,
+        help_text='Например: ПФР, СФР'
+    )
+    notes = models.TextField('Примечания', blank=True)
+    created_at = models.DateTimeField('Создано', auto_now_add=True)
+    updated_at = models.DateTimeField('Обновлено', auto_now=True)
+    
+    class Meta:
+        verbose_name = 'Начисление пенсии'
+        verbose_name_plural = 'Начисления пенсий'
+        unique_together = ['account', 'year', 'month']
+        ordering = ['-year', '-month']
+    
+    def __str__(self):
+        return f"Начисление {self.amount} руб. - {self.account.recipient} ({self.month:02d}.{self.year})"
+    
+    @property
+    def month_name(self):
+        """Название месяца"""
+        months = {
+            1: 'Январь', 2: 'Февраль', 3: 'Март', 4: 'Апрель',
+            5: 'Май', 6: 'Июнь', 7: 'Июль', 8: 'Август',
+            9: 'Сентябрь', 10: 'Октябрь', 11: 'Ноябрь', 12: 'Декабрь'
+        }
+        return months.get(self.month, str(self.month))
+    
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # Пересчитываем баланс счёта
+        self.account.recalculate_balance()
+
+
+class PensionExpense(models.Model):
+    """Расход из пенсии"""
+    
+    CATEGORY_CHOICES = [
+        ('food', 'Продукты питания'),
+        ('medicine', 'Лекарства'),
+        ('clothing', 'Одежда'),
+        ('hygiene', 'Средства гигиены'),
+        ('services', 'Услуги'),
+        ('request', 'Исполнение заявки'),
+        ('other', 'Прочее'),
+    ]
+    
+    account = models.ForeignKey(
+        PensionAccount,
+        on_delete=models.CASCADE,
+        related_name='expenses',
+        verbose_name='Пенсионный счёт'
+    )
+    year = models.IntegerField('Год')
+    month = models.IntegerField('Месяц')
+    amount = models.DecimalField(
+        'Сумма расхода',
+        max_digits=10,
+        decimal_places=2,
+        help_text='Сумма списания'
+    )
+    category = models.CharField(
+        'Категория',
+        max_length=20,
+        choices=CATEGORY_CHOICES,
+        default='other'
+    )
+    description = models.TextField('Описание', blank=True)
+    expense_date = models.DateField(
+        'Дата расхода',
+        null=True,
+        blank=True
+    )
+    related_request = models.ForeignKey(
+        MonthlyRequest,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='pension_expenses',
+        verbose_name='Связанная заявка',
+        help_text='Заявка на паёк, если расход связан с ней'
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name='Создал'
+    )
+    created_at = models.DateTimeField('Создано', auto_now_add=True)
+    updated_at = models.DateTimeField('Обновлено', auto_now=True)
+    
+    class Meta:
+        verbose_name = 'Расход пенсии'
+        verbose_name_plural = 'Расходы пенсий'
+        ordering = ['-year', '-month', '-created_at']
+    
+    def __str__(self):
+        return f"Расход {self.amount} руб. - {self.account.recipient} ({self.month:02d}.{self.year})"
+    
+    @property
+    def month_name(self):
+        """Название месяца"""
+        months = {
+            1: 'Январь', 2: 'Февраль', 3: 'Март', 4: 'Апрель',
+            5: 'Май', 6: 'Июнь', 7: 'Июль', 8: 'Август',
+            9: 'Сентябрь', 10: 'Октябрь', 11: 'Ноябрь', 12: 'Декабрь'
+        }
+        return months.get(self.month, str(self.month))
+    
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # Пересчитываем баланс счёта
+        self.account.recalculate_balance()
+
+
+class PensionSavings(models.Model):
+    """Накопления пенсии (отложенные средства)"""
+    
+    account = models.ForeignKey(
+        PensionAccount,
+        on_delete=models.CASCADE,
+        related_name='savings',
+        verbose_name='Пенсионный счёт'
+    )
+    year = models.IntegerField('Год')
+    month = models.IntegerField('Месяц')
+    amount = models.DecimalField(
+        'Сумма накопления',
+        max_digits=10,
+        decimal_places=2,
+        help_text='Отложенная сумма'
+    )
+    purpose = models.CharField(
+        'Цель накопления',
+        max_length=200,
+        blank=True,
+        help_text='На что копятся средства'
+    )
+    notes = models.TextField('Примечания', blank=True)
+    created_at = models.DateTimeField('Создано', auto_now_add=True)
+    updated_at = models.DateTimeField('Обновлено', auto_now=True)
+    
+    class Meta:
+        verbose_name = 'Накопление пенсии'
+        verbose_name_plural = 'Накопления пенсий'
+        unique_together = ['account', 'year', 'month']
+        ordering = ['-year', '-month']
+    
+    def __str__(self):
+        return f"Накопление {self.amount} руб. - {self.account.recipient} ({self.month:02d}.{self.year})"

@@ -73,13 +73,20 @@
                     {% if recipient.age %}
                     <span class="text-slate-500 text-sm">({{ recipient.age }} лет)</span>
                     {% endif %}
+                    {% with current_placement=recipient.get_current_placement %}
                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                        {% if recipient.status == 'active' %}bg-green-100 text-green-800
-                        {% elif recipient.status == 'vacation' %}bg-yellow-100 text-yellow-800
-                        {% elif recipient.status == 'hospital' %}bg-blue-100 text-blue-800
-                        {% else %}bg-red-100 text-red-800{% endif %}">
-                        {{ recipient.get_status_display }}
+                        {% if current_placement == 'internat' %}bg-green-100 text-green-800
+                        {% elif current_placement == 'vacation' %}bg-yellow-100 text-yellow-800
+                        {% elif current_placement == 'hospital' %}bg-blue-100 text-blue-800
+                        {% elif current_placement == 'discharged' %}bg-red-100 text-red-800
+                        {% else %}bg-slate-100 text-slate-800{% endif %}">
+                        {% if current_placement == 'internat' %}Проживает
+                        {% elif current_placement == 'vacation' %}В отпуске
+                        {% elif current_placement == 'hospital' %}В больнице
+                        {% elif current_placement == 'discharged' %}Выбыл
+                        {% else %}{{ current_placement }}{% endif %}
                     </span>
+                    {% endwith %}
                 </div>
                 <!-- Дополнительная информация под ФИО и кнопки справа -->
                 <div class="flex items-center justify-between gap-4 mt-1">

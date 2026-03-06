@@ -6,10 +6,12 @@ from django.db import transaction
 from django.utils import timezone
 from datetime import date
 
-from apps.recipients.models import Recipient, StatusHistory, PlacementHistory
+from apps.recipients.models import Recipient, RecipientHistory
 from apps.core.models import Department
 from apps.services.models import ServiceLog
 
+
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
 @login_required
 def recipient_list(request):
@@ -37,6 +39,43 @@ def recipient_list(request):
     # Получаем все записи для Python-фильтрации и сортировки
     # (SQLite не поддерживает icontains и Lower() для кириллицы)
     all_recipients = list(recipients.select_related('department'))
+    
+    # Оптимизация: загружаем актуальные записи истории одним запросом
+    # Получаем ID всех проживающих
+    recipient_ids = [r.id for r in all_recipients]
+    
+    # Получаем последние записи истории для каждого проживающего
+    # Используем подзапрос для получения максимальной даты
+    from django.db.models import Max, OuterRef, Subquery
+    
+    # Получаем все записи истории с максимальной датой для каждого получателя
+    latest_history = {}
+    history_records = RecipientHistory.objects.filter(
+        recipient_id__in=recipient_ids,
+        date__lte=date.today()
+    ).select_related('new_department', 'old_department').order_by('recipient_id', '-date')
+    
+    # Берём только последнюю запись для каждого получателя
+    seen_recipients = set()
+    for h in history_records:
+        if h.recipient_id not in seen_recipients:
+            latest_history[h.recipient_id] = h
+            seen_recipients.add(h.recipient_id)
+    
+    # Добавляем актуальные данные к каждому проживающему
+    for r in all_recipients:
+        h = latest_history.get(r.id)
+        if h:
+            # Используем new_placement как основной источник статуса
+            r.current_placement = h.new_placement if h.new_placement else r.placement
+            r.current_department = h.new_department if h.new_department else r.department
+            r.current_room = h.new_room if h.new_room else r.room
+        else:
+            r.current_placement = r.placement
+            r.current_department = r.department
+            r.current_room = r.room
+        # Для совместимости со старым кодом
+        r.current_status = r.current_placement
     
     if search:
         # Регистронезависимый поиск для кириллицы
@@ -75,19 +114,27 @@ def recipient_list(request):
     # Выполняем сортировку
     all_recipients.sort(key=get_sort_key, reverse=(sort_direction == 'desc'))
     
-    # Присваиваем обратно переменной recipients для совместимости
-    recipients = all_recipients
+    # Пагинация - 50 проживающих на страницу
+    paginator = Paginator(all_recipients, 50)
+    page = request.GET.get('page', 1)
     
-    # Только реальные отделения для выпадающего списка фильтров
-    departments = Department.objects.filter(
-        department_type__in=['residential', 'mercy']
-    )
+    try:
+        recipients_page = paginator.page(page)
+    except PageNotAnInteger:
+        recipients_page = paginator.page(1)
+    except EmptyPage:
+        recipients_page = paginator.page(paginator.num_pages)
+    
+    # Все отделения для выпадающего списка фильтров
+    departments = Department.objects.all()
     
     # Все отделения для модального окна изменения статуса
     all_departments = Department.objects.all()
     
     context = {
-        'recipients': recipients,
+        'recipients': recipients_page,
+        'page_obj': recipients_page,
+        'paginator': paginator,
         'departments': departments,
         'all_departments': all_departments,
         'selected_dept': department_id,
@@ -112,23 +159,15 @@ def recipient_detail(request, pk):
     
     # Обработка POST запроса - сохранение изменений
     if request.method == 'POST':
-        old_department = recipient.department
-        old_room = recipient.room
-        old_status = old_department.status_code if old_department else None
+        # Берём актуальные значения из истории (как в модальном окне)
+        old_department = recipient.get_current_department()
+        old_room = recipient.get_current_room()
+        old_placement = recipient.get_current_placement()
         
         recipient.last_name = request.POST.get('last_name', recipient.last_name)
         recipient.first_name = request.POST.get('first_name', recipient.first_name)
         recipient.patronymic = request.POST.get('patronymic', '')
         recipient.birth_date = request.POST.get('birth_date') or recipient.birth_date
-        recipient.room = request.POST.get('room', '')
-        
-        dept_id = request.POST.get('department')
-        if dept_id:
-            new_department = Department.objects.get(id=dept_id)
-            recipient.department = new_department
-        else:
-            new_department = None
-            recipient.department = None
         
         admission_date = request.POST.get('admission_date')
         if admission_date:
@@ -146,37 +185,74 @@ def recipient_detail(request, pk):
         if request.FILES.get('photo'):
             recipient.photo = request.FILES['photo']
         
-        new_status = recipient.department.status_code if recipient.department else None
         reason = request.POST.get('status_reason', '')
+        
+        # Получаем дату изменения из формы
+        status_change_date_str = request.POST.get('status_change_date')
+        status_change_date = date.today()  # По умолчанию сегодня
+        if status_change_date_str:
+            try:
+                from datetime import datetime
+                status_change_date = datetime.strptime(status_change_date_str, '%Y-%m-%d').date()
+            except (ValueError, TypeError):
+                pass  # Если дата некорректна, используем сегодняшнюю
+        
+        # Получаем новое размещение из формы
+        new_placement = request.POST.get('placement')
+        
+        # Получаем новое отделение (только для internat)
+        if new_placement == 'internat':
+            dept_id = request.POST.get('department')
+            if dept_id:
+                try:
+                    new_department = Department.objects.get(id=dept_id)
+                except Department.DoesNotExist:
+                    new_department = old_department
+            else:
+                new_department = old_department
+            new_room = request.POST.get('room', '')
+        else:
+            # Для не-internat отделение не требуется
+            new_department = None
+            new_room = ''
+        
+        # Определяем, нужно ли менять текущие поля
+        today = date.today()
+        should_update_current = status_change_date >= today
         
         # Используем транзакцию для атомарного обновления
         with transaction.atomic():
+            # Обновляем текущие поля только если дата - сегодня или позже
+            if should_update_current:
+                recipient.placement = new_placement
+                recipient.department = new_department
+                recipient.room = new_room
+            
             recipient.save()
             
-            # Создаем запись в истории статусов если отделение изменилось
-            if old_department != recipient.department:
-                StatusHistory.objects.create(
+            # Создаем запись в истории если размещение, отделение или комната изменились
+            if (old_placement != new_placement or
+                old_department != new_department or
+                old_room != new_room):
+                
+                # Удаляем существующие записи с той же датой для этого получателя
+                RecipientHistory.objects.filter(
                     recipient=recipient,
-                    old_department=old_department,
-                    new_department=recipient.department,
-                    old_status=old_status,
-                    new_status=new_status,
-                    changed_by=user,
-                    reason=reason
-                )
-            
-            # Создаем запись в истории перемещений если отделение или комната изменились
-            if old_department != recipient.department or old_room != recipient.room:
-                PlacementHistory.objects.create(
+                    date=status_change_date
+                ).delete()
+                
+                RecipientHistory.objects.create(
                     recipient=recipient,
+                    old_placement=old_placement,
+                    new_placement=new_placement,
                     old_department=old_department,
-                    new_department=recipient.department,
+                    new_department=new_department,
                     old_room=old_room,
-                    new_room=recipient.room,
-                    old_status=old_status,
-                    new_status=new_status,
+                    new_room=new_room,
+                    old_status=old_placement,  # Для совместимости
+                    new_status=new_placement,  # Для совместимости
                     reason=reason,
-                    date=date.today(),
+                    date=status_change_date,
                     changed_by=user
                 )
         
@@ -209,18 +285,19 @@ def recipient_detail(request, pk):
     # Последние оказанные услуги
     recent_services = service_logs.select_related('service').order_by('-date')[:5]
     
-    # История статусов
-    status_history = recipient.status_history.all()[:10]
+    # Единая история изменений
+    history = recipient.history.all()[:10]
     
-    # История перемещений
-    placement_history = recipient.placement_history.all()[:10]
+    # Дата последнего изменения статуса (из истории)
+    last_status_change = recipient.history.first()
+    last_status_change_date = last_status_change.date if last_status_change else None
     
     # Все отделения для выпадающего списка (включая специальные статусы)
     departments = Department.objects.all()
     
-    # Проживающие для переключения
-    recipients = Recipient.objects.select_related('department').filter(
-        department__department_type__in=['residential', 'mercy', 'hospital', 'vacation']
+    # Проживающие для переключения (все, кроме выбывших)
+    recipients = Recipient.objects.select_related('department').exclude(
+        placement='discharged'
     )
     
     # Фильтрация по отделению пользователя
@@ -239,8 +316,8 @@ def recipient_detail(request, pk):
             'current_month_amount': current_month_stats['current_month_amount'] or 0,
         },
         'recent_services': recent_services,
-        'status_history': status_history,
-        'placement_history': placement_history,
+        'history': history,
+        'last_status_change_date': last_status_change_date,
     }
     
     return render(request, 'recipients/recipient_edit.html', context)
@@ -255,10 +332,10 @@ def recipients_by_department(request, department_id):
     if not user.is_admin_or_hr and user.department_id != department_id:
         return JsonResponse({'error': 'Нет доступа'}, status=403)
     
-    # Фильтруем по отделениям проживания (не больница, не отпуск, не умер)
+    # Фильтруем по отделению (только проживающие в интернате)
     recipients = Recipient.objects.filter(
         department_id=department_id,
-        department__department_type__in=['residential', 'mercy']
+        placement='internat'
     ).values('id', 'last_name', 'first_name', 'patronymic', 'room')
     
     return JsonResponse({
@@ -268,7 +345,7 @@ def recipients_by_department(request, department_id):
 
 @login_required
 def change_status(request, pk):
-    """API: Изменение статуса/размещения проживающего"""
+    """API: Изменение размещения проживающего"""
     recipient = get_object_or_404(Recipient, pk=pk)
     user = request.user
     
@@ -285,65 +362,105 @@ def change_status(request, pk):
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Неверный формат данных'}, status=400)
     
-    old_department = recipient.department
-    old_room = recipient.room
-    old_status = old_department.status_code if old_department else None
+    # Берём актуальные значения из истории
+    old_department = recipient.get_current_department()
+    old_room = recipient.get_current_room()
+    old_placement = recipient.get_current_placement()
     
     # Получаем новые данные
+    new_placement = data.get('placement')  # Новое размещение
     new_department_id = data.get('department_id')
     new_room = data.get('room', '')
     reason = data.get('reason', '')
+    change_date_str = data.get('change_date')
     
-    if new_department_id:
+    # Парсим дату изменения если передана
+    change_date = date.today()
+    if change_date_str:
         try:
-            new_department = Department.objects.get(id=new_department_id)
-            recipient.department = new_department
-        except Department.DoesNotExist:
-            return JsonResponse({'error': 'Отделение не найдено'}, status=400)
+            from datetime import datetime
+            change_date = datetime.strptime(change_date_str, '%Y-%m-%d').date()
+        except (ValueError, TypeError):
+            pass
+    
+    # Определяем новое размещение
+    if not new_placement:
+        # Если размещение не указано, определяем по отделению
+        if new_department_id:
+            try:
+                dept = Department.objects.get(id=new_department_id)
+                dept_to_placement = {
+                    'residential': 'internat',
+                    'mercy': 'internat',
+                    'vacation': 'vacation',
+                    'hospital': 'hospital',
+                    'deceased': 'discharged',
+                }
+                new_placement = dept_to_placement.get(dept.department_type, 'internat')
+            except Department.DoesNotExist:
+                new_placement = 'internat'
+        else:
+            new_placement = recipient.placement
+    
+    # Получаем новое отделение (только для internat)
+    if new_placement == 'internat':
+        if new_department_id:
+            try:
+                new_department = Department.objects.get(id=new_department_id)
+            except Department.DoesNotExist:
+                return JsonResponse({'error': 'Отделение не найдено'}, status=400)
+        else:
+            new_department = recipient.department
     else:
-        recipient.department = None
+        # Для не-internat отделение не требуется
+        new_department = None
+        new_room = ''
     
-    recipient.room = new_room
-    
-    # Обновляем даты
-    admission_date = data.get('admission_date')
-    if admission_date:
-        recipient.admission_date = admission_date
-    
-    discharge_date = data.get('discharge_date')
-    if discharge_date:
-        recipient.discharge_date = discharge_date
-    
-    new_status = recipient.department.status_code if recipient.department else None
+    # Определяем, нужно ли менять текущие поля
+    today = date.today()
+    should_update_current = change_date >= today
     
     # Используем транзакцию для атомарного обновления
     with transaction.atomic():
+        # Обновляем текущие поля только если дата - сегодня или позже
+        if should_update_current:
+            recipient.placement = new_placement
+            recipient.department = new_department
+            recipient.room = new_room
+        
+        # Обновляем даты
+        admission_date = data.get('admission_date')
+        if admission_date:
+            recipient.admission_date = admission_date
+        
+        discharge_date = data.get('discharge_date')
+        if discharge_date:
+            recipient.discharge_date = discharge_date
+        
         recipient.save()
         
-        # Создаем запись в истории статусов если отделение изменилось
-        if old_department != recipient.department:
-            StatusHistory.objects.create(
+        # Создаем запись в истории
+        if (old_placement != new_placement or
+            old_department != new_department or
+            old_room != new_room):
+            
+            RecipientHistory.objects.filter(
                 recipient=recipient,
-                old_department=old_department,
-                new_department=recipient.department,
-                old_status=old_status,
-                new_status=new_status,
-                changed_by=user,
-                reason=reason
-            )
-        
-        # Создаем запись в истории перемещений если отделение или комната изменились
-        if old_department != recipient.department or old_room != recipient.room:
-            PlacementHistory.objects.create(
+                date=change_date
+            ).delete()
+            
+            RecipientHistory.objects.create(
                 recipient=recipient,
+                old_placement=old_placement,
+                new_placement=new_placement,
                 old_department=old_department,
-                new_department=recipient.department,
+                new_department=new_department,
                 old_room=old_room,
-                new_room=recipient.room,
-                old_status=old_status,
-                new_status=new_status,
+                new_room=new_room,
+                old_status=old_placement,  # Для совместимости
+                new_status=new_placement,  # Для совместимости
                 reason=reason,
-                date=date.today(),
+                date=change_date,
                 changed_by=user
             )
     
@@ -351,9 +468,11 @@ def change_status(request, pk):
         'success': True,
         'recipient': {
             'id': recipient.id,
+            'placement': recipient.placement,
+            'placement_display': recipient.placement_display,
             'department': recipient.department.name if recipient.department else '',
             'room': recipient.room,
-            'status': recipient.status,
+            'status': recipient.status,  # Для совместимости
             'status_display': recipient.status_display
         }
     })
@@ -426,13 +545,11 @@ def edit_contract(request, pk):
         selected_service_ids = list(contract.services.values_list('service_id', flat=True))
     
     # Отделения для фильтра
-    departments = Department.objects.filter(
-        department_type__in=['residential', 'mercy']
-    )
+    departments = Department.objects.all()
     
-    # Проживающие для переключения
-    recipients = Recipient.objects.select_related('department').filter(
-        department__department_type__in=['residential', 'mercy', 'hospital', 'vacation']
+    # Проживающие для переключения (все, кроме выбывших)
+    recipients = Recipient.objects.select_related('department').exclude(
+        placement='discharged'
     )
     
     # Фильтрация по отделению пользователя
@@ -465,9 +582,7 @@ def contract_list(request):
         return redirect('recipients:contract', pk=recipient_id)
     
     # Отделения для фильтра
-    departments = Department.objects.filter(
-        department_type__in=['residential', 'mercy']
-    )
+    departments = Department.objects.all()
     
     # Проживающие
     recipients = Recipient.objects.select_related('department').all()
@@ -480,8 +595,8 @@ def contract_list(request):
         recipients = recipients.filter(department_id=department_id)
     
     # Фильтруем только проживающих (не выбывших)
-    recipients = recipients.filter(
-        department__department_type__in=['residential', 'mercy', 'hospital', 'vacation']
+    recipients = recipients.exclude(
+        placement='discharged'
     )
     
     context = {
@@ -514,9 +629,9 @@ def jubilees_list(request):
         month = int(month)
         year = int(year)
         
-        # Получаем всех проживающих
+        # Получаем всех проживающих в интернате
         recipients = Recipient.objects.select_related('department').filter(
-            department__department_type__in=['residential', 'mercy']
+            placement='internat'
         )
         
         # Фильтрация по отделению пользователя
@@ -593,9 +708,7 @@ def residents_list_page(request):
     user = request.user
     
     # Получаем отделения
-    departments = Department.objects.filter(
-        department_type__in=['residential', 'mercy']
-    ).annotate(
+    departments = Department.objects.annotate(
         recipient_count=Count('recipients')
     ).all()
     
@@ -620,14 +733,11 @@ def residents_list_print(request):
     
     if department_ids and 'all' not in department_ids:
         departments = Department.objects.filter(
-            id__in=department_ids,
-            department_type__in=['residential', 'mercy']
+            id__in=department_ids
         )
     else:
         # Все отделения
-        departments = Department.objects.filter(
-            department_type__in=['residential', 'mercy']
-        )
+        departments = Department.objects.all()
     
     # Собираем данные по отделениям
     departments_data = []
@@ -678,3 +788,57 @@ def residents_list_print(request):
     }
     
     return render(request, 'recipients/residents_list_print.html', context)
+
+
+@login_required
+def consent_opd_page(request):
+    """Страница выбора проживающего для формирования согласия на ОПД"""
+    user = request.user
+    today = date.today()
+    
+    # Получаем всех проживающих
+    recipients = Recipient.objects.select_related('department').all()
+    
+    # Фильтрация по отделению для не-админов
+    if not user.is_admin_or_hr and user.department:
+        recipients = recipients.filter(department=user.department)
+    
+    # Получаем выбранное отделение
+    selected_department = request.GET.get('department', '')
+    
+    # Получаем выбранного проживающего
+    recipient_id = request.GET.get('recipient')
+    selected_recipient = None
+    
+    if recipient_id:
+        try:
+            selected_recipient = Recipient.objects.select_related('department').get(pk=recipient_id)
+        except Recipient.DoesNotExist:
+            pass
+    
+    # Получаем отделения для фильтра
+    departments = Department.objects.all()
+    
+    context = {
+        'recipients': recipients,
+        'selected_recipient': selected_recipient,
+        'selected_department': selected_department,
+        'departments': departments,
+        'today': today,
+    }
+    
+    return render(request, 'recipients/consent_opd_select.html', context)
+
+
+@login_required
+def consent_opd_print(request, pk):
+    """Печать согласия на обработку персональных данных"""
+    recipient = get_object_or_404(Recipient, pk=pk)
+    today = date.today()
+    
+    context = {
+        'recipient': recipient,
+        'today': today,
+    }
+    
+    return render(request, 'recipients/consent_opd_print.html', context)

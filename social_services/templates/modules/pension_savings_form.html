@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+
+{% block title %}Добавление накопления - СоцУслуги{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto space-y-6">
+    <!-- Header -->
+    <div class="flex items-center gap-4">
+        <a href="{% url 'modules:pensions' %}" class="text-slate-400 hover:text-slate-600">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+            </svg>
+        </a>
+        <div>
+            <h1 class="text-2xl font-bold text-slate-800">Добавление накопления</h1>
+        </div>
+    </div>
+
+    <!-- Form -->
+    <form method="post" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-6">
+        {% csrf_token %}
+        
+        {% if form.errors %}
+        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+            <p class="font-medium">Пожалуйста, исправьте ошибки:</p>
+            <ul class="mt-2 list-disc list-inside text-sm">
+                {% for field in form %}
+                    {% for error in field.errors %}
+                    <li>{{ field.label }}: {{ error }}</li>
+                    {% endfor %}
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <!-- Account -->
+        <div>
+            <label for="{{ form.account.id_for_label }}" class="block text-sm font-medium text-slate-700 mb-1">
+                Пенсионный счёт <span class="text-red-500">*</span>
+            </label>
+            <select name="account" id="{{ form.account.id_for_label }}" required
+                    class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                <option value="">-- Выберите счёт --</option>
+                {% for acc in accounts %}
+                <option value="{{ acc.pk }}" {% if form.account.value == acc.pk|stringformat:"s" %}selected{% endif %}>
+                    {{ acc.recipient.full_name }} ({{ acc.recipient.department.name|default:"Без отделения" }})
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Year and Month -->
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label for="{{ form.year.id_for_label }}" class="block text-sm font-medium text-slate-700 mb-1">
+                    Год <span class="text-red-500">*</span>
+                </label>
+                <input type="number" name="year" id="{{ form.year.id_for_label }}"
+                       value="{{ form.year.value|default:'2026' }}" min="2020" max="2030" required
+                       class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+            </div>
+            <div>
+                <label for="{{ form.month.id_for_label }}" class="block text-sm font-medium text-slate-700 mb-1">
+                    Месяц <span class="text-red-500">*</span>
+                </label>
+                <select name="month" id="{{ form.month.id_for_label }}" required
+                        class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                    <option value="1" {% if form.month.value == '1' %}selected{% endif %}>Январь</option>
+                    <option value="2" {% if form.month.value == '2' %}selected{% endif %}>Февраль</option>
+                    <option value="3" {% if form.month.value == '3' %}selected{% endif %}>Март</option>
+                    <option value="4" {% if form.month.value == '4' %}selected{% endif %}>Апрель</option>
+                    <option value="5" {% if form.month.value == '5' %}selected{% endif %}>Май</option>
+                    <option value="6" {% if form.month.value == '6' %}selected{% endif %}>Июнь</option>
+                    <option value="7" {% if form.month.value == '7' %}selected{% endif %}>Июль</option>
+                    <option value="8" {% if form.month.value == '8' %}selected{% endif %}>Август</option>
+                    <option value="9" {% if form.month.value == '9' %}selected{% endif %}>Сентябрь</option>
+                    <option value="10" {% if form.month.value == '10' %}selected{% endif %}>Октябрь</option>
+                    <option value="11" {% if form.month.value == '11' %}selected{% endif %}>Ноябрь</option>
+                    <option value="12" {% if form.month.value == '12' %}selected{% endif %}>Декабрь</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Amount -->
+        <div>
+            <label for="{{ form.amount.id_for_label }}" class="block text-sm font-medium text-slate-700 mb-1">
+                Сумма накопления (руб.) <span class="text-red-500">*</span>
+            </label>
+            <input type="number" name="amount" id="{{ form.amount.id_for_label }}"
+                   value="{{ form.amount.value|default:'' }}" step="0.01" min="0" required
+                   class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+        </div>
+
+        <!-- Purpose -->
+        <div>
+            <label for="{{ form.purpose.id_for_label }}" class="block text-sm font-medium text-slate-700 mb-1">
+                Цель накопления
+            </label>
+            <input type="text" name="purpose" id="{{ form.purpose.id_for_label }}"
+                   value="{{ form.purpose.value|default:'' }}"
+                   placeholder="Например: на одежду, на лекарства, на отдых"
+                   class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+        </div>
+
+        <!-- Notes -->
+        <div>
+            <label for="{{ form.notes.id_for_label }}" class="block text-sm font-medium text-slate-700 mb-1">
+                Примечания
+            </label>
+            <textarea name="notes" id="{{ form.notes.id_for_label }}" rows="3"
+                      class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">{{ form.notes.value|default:"" }}</textarea>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex gap-3 pt-4 border-t border-slate-200">
+            <a href="{% url 'modules:pensions' %}" 
+               class="flex-1 px-4 py-2 border border-slate-300 text-slate-700 text-center rounded-lg hover:bg-slate-50">
+                Отмена
+            </a>
+            <button type="submit" 
+                    class="flex-1 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">
+                Добавить накопление
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -130,17 +130,108 @@
         z-index: 25;
     }
     
-    /* Category Row */
+    /* Category Row - Accordion */
     .category-row {
         background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%) !important;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        user-select: none;
+    }
+    
+    .category-row:hover {
+        background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%) !important;
+        transform: scale(1.002);
+    }
+    
+    .category-row:active {
+        transform: scale(0.995);
+        background: linear-gradient(135deg, #cbd5e1 0%, #94a3b8 100%) !important;
     }
     
     .category-row td {
-        padding: 10px 12px;
+        padding: 12px 16px;
         font-weight: 600;
         color: #1e40af;
         text-align: center;
         font-size: 13px;
+    }
+    
+    .category-row .category-arrow {
+        transition: transform 0.3s ease;
+        display: inline-block;
+        margin-right: 8px;
+        font-size: 10px;
+    }
+    
+    .category-row.expanded .category-arrow {
+        transform: rotate(90deg);
+    }
+    
+    .category-row.loading .category-arrow {
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    
+    /* Service rows container */
+    .category-services {
+        display: none;
+        opacity: 0;
+        transform: translateY(-10px);
+        transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+    
+    .category-services.visible {
+        display: table-row-group;
+        opacity: 1;
+        transform: translateY(0);
+        animation: fadeIn 0.3s ease forwards;
+    }
+    
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .category-services tr {
+        animation: slideIn 0.2s ease forwards;
+        opacity: 0;
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateX(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    /* Service count badge */
+    .service-count-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 20px;
+        height: 20px;
+        padding: 0 6px;
+        background: #3b82f6;
+        color: white;
+        border-radius: 10px;
+        font-size: 11px;
+        font-weight: 600;
+        margin-left: 8px;
     }
     
     /* Day Cells */
@@ -327,13 +418,20 @@
                     {% if selected_recipient.age %}
                     <span class="text-slate-500 text-sm">({{ selected_recipient.age }} лет)</span>
                     {% endif %}
+                    {% with current_placement=selected_recipient.get_current_placement %}
                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                        {% if selected_recipient.status == 'active' %}bg-green-100 text-green-800
-                        {% elif selected_recipient.status == 'vacation' %}bg-yellow-100 text-yellow-800
-                        {% elif selected_recipient.status == 'hospital' %}bg-blue-100 text-blue-800
-                        {% else %}bg-red-100 text-red-800{% endif %}">
-                        {{ selected_recipient.get_status_display }}
+                        {% if current_placement == 'internat' %}bg-green-100 text-green-800
+                        {% elif current_placement == 'vacation' %}bg-yellow-100 text-yellow-800
+                        {% elif current_placement == 'hospital' %}bg-blue-100 text-blue-800
+                        {% elif current_placement == 'discharged' %}bg-red-100 text-red-800
+                        {% else %}bg-slate-100 text-slate-800{% endif %}">
+                        {% if current_placement == 'internat' %}Проживает
+                        {% elif current_placement == 'vacation' %}В отпуске
+                        {% elif current_placement == 'hospital' %}В больнице
+                        {% elif current_placement == 'discharged' %}Выбыл
+                        {% else %}{{ current_placement }}{% endif %}
                     </span>
+                    {% endwith %}
                 </div>
                 <!-- Дополнительная информация под ФИО и кнопки справа -->
                 <div class="flex items-center justify-between gap-4 mt-1">
@@ -372,19 +470,7 @@
                 </div>
                 <!-- Нижний ряд кнопок: Очистить, Автозаполнение, Печать -->
                 <div class="flex items-center justify-end gap-2 mt-2 no-print">
-                    <button type="button" 
-                            id="lock-btn"
-                            onclick="toggleLock()"
-                            class="inline-flex items-center px-4 py-2 {% if is_locked %}bg-green-500 hover:bg-green-600{% else %}bg-slate-500 hover:bg-slate-600{% endif %} text-white text-sm font-medium rounded-lg transition-colors">
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            {% if is_locked %}
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/>
-                            {% else %}
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-                            {% endif %}
-                        </svg>
-                        <span id="lock-btn-text">{% if is_locked %}Разблокировать{% else %}Заблокировать{% endif %}</span>
-                    </button>
+                   
                     <button type="button" 
                             onclick="clearAllServices()"
                             class="inline-flex items-center px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">
@@ -400,6 +486,19 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                         </svg>
                         Автозаполнение
+                    </button>
+                     <button type="button" 
+                            id="lock-btn"
+                            onclick="toggleLock()"
+                            class="inline-flex items-center px-4 py-2 {% if is_locked %}bg-green-500 hover:bg-green-600{% else %}bg-slate-500 hover:bg-slate-600{% endif %} text-white text-sm font-medium rounded-lg transition-colors">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            {% if is_locked %}
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/>
+                            {% else %}
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                            {% endif %}
+                        </svg>
+                        <span id="lock-btn-text">{% if is_locked %}Разблокировать{% else %}Заблокировать{% endif %}</span>
                     </button>
                     <a href="{% url 'services:tabel_print' %}?recipient={{ selected_recipient.id }}&year={{ year }}&month={{ month }}" 
                        target="_blank"
@@ -434,40 +533,17 @@
                 <tbody>
                     {% if selected_recipient %}
                         {% for item in categories_with_services %}
-                        <tr class="category-row">
-                            <td colspan="{{ days_in_month|add:3 }}">{{ item.category.name }}</td>
+                        <tr class="category-row" data-category-id="{{ item.category.id }}" onclick="toggleCategory({{ item.category.id }})">
+                            <td colspan="{{ days_in_month|add:3 }}">
+                                <span class="category-arrow">▶</span>
+                                {{ item.category.name }}
+                                <span class="service-count-badge">{{ item.services|length }}</span>
+                            </td>
                         </tr>
-                        
-                            {% for service in item.services %}
-                            <tr class="{% if service.parent %}sub-service{% endif %}" data-service-id="{{ service.id }}">
-                                <td class="service-number">{{ service.code }}</td>
-                                <td class="service-name service-name-clickable" data-service="{{ service.id }}" 
-                                    title="Левый клик — заполнить строку, правый — сбросить">
-                                    {{ service.name }}
-                                    {% if service.max_quantity_per_month %}
-                                    <span class="ml-2 text-xs text-amber-600 font-normal" title="Ограничение в месяц">
-                                        (макс. {{ service.max_quantity_per_month }})
-                                    </span>
-                                    {% endif %}
-                                </td>
-                                
-                                {% for day in days_in_month|get_range %}
-                                <td class="day-cell count-0 {% if day in weekends or day in holiday_days %}weekend-cell{% endif %}" 
-                                    id="cell-{{ service.id }}-{{ day }}"
-                                    data-service="{{ service.id }}" 
-                                    data-day="{{ day }}"
-                                    {% if service.max_quantity_per_month %}data-max="{{ service.max_quantity_per_month }}"{% endif %}>
-                                </td>
-                                {% endfor %}
-                                
-                                <td class="total-cell" id="total-{{ service.id }}">
-                                    0
-                                    {% if service.max_quantity_per_month %}
-                                    <span class="text-xs opacity-60">/{{ service.max_quantity_per_month }}</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
+                        <!-- Services container - loaded lazily -->
+                        <tbody class="category-services" id="category-services-{{ item.category.id }}">
+                            <!-- Services will be loaded here via AJAX -->
+                        </tbody>
                         {% empty %}
                         <tr>
                             <td colspan="{{ days_in_month|add:3 }}" class="text-center py-12">
@@ -532,6 +608,15 @@
     const serviceLimits = {{ service_limits|safe }};
     let isLocked = {{ is_locked|yesno:"true,false" }};
     
+    // Accordion state
+    let expandedCategoryId = null;
+    let loadedCategories = new Set();
+    
+    // Weekends and holidays for cell rendering
+    const weekendsData = {{ weekends_json|safe }};
+    const holidayDaysData = {{ holiday_days_json|safe }};
+    const daysInMonth = {{ days_in_month }};
+    
     // Initialize cells with existing data
     document.addEventListener('DOMContentLoaded', function() {
         // Apply lock state on load
@@ -539,34 +624,181 @@
             applyLockState();
         }
         
-        // Load existing service logs
-        for (const key in serviceLogs) {
-            const [serviceId, day] = key.split('-');
-            const count = serviceLogs[key];
-            const cell = document.getElementById(`cell-${serviceId}-${day}`);
-            if (cell && count > 0) {
-                updateCellDisplay(cell, count);
-                updateTotal(serviceId);
-            }
-        }
-        
-        // Add click handlers for day cells
-        document.querySelectorAll('.day-cell').forEach(cell => {
-            cell.addEventListener('click', handleCellClick);
-            cell.addEventListener('contextmenu', handleCellRightClick);
-        });
-        
-        // Add click handlers for service name (fill/reset row)
-        document.querySelectorAll('.service-name-clickable').forEach(cell => {
-            cell.addEventListener('click', handleServiceNameClick);
-            cell.addEventListener('contextmenu', handleServiceNameRightClick);
-        });
-        
         // Add click handlers for day headers (clear column)
         document.querySelectorAll('.day-header').forEach(header => {
             header.addEventListener('click', handleDayHeaderClick);
         });
     });
+    
+    // Toggle category accordion
+    async function toggleCategory(categoryId) {
+        const categoryRow = document.querySelector(`tr[data-category-id="${categoryId}"]`);
+        const servicesContainer = document.getElementById(`category-services-${categoryId}`);
+        
+        if (!servicesContainer) return;
+        
+        // If clicking on already expanded category - collapse it
+        if (expandedCategoryId === categoryId) {
+            categoryRow.classList.remove('expanded');
+            servicesContainer.classList.remove('visible');
+            expandedCategoryId = null;
+            return;
+        }
+        
+        // Collapse previously expanded category
+        if (expandedCategoryId !== null) {
+            const prevRow = document.querySelector(`tr[data-category-id="${expandedCategoryId}"]`);
+            const prevContainer = document.getElementById(`category-services-${expandedCategoryId}`);
+            if (prevRow) prevRow.classList.remove('expanded');
+            if (prevContainer) prevContainer.classList.remove('visible');
+        }
+        
+        // Expand new category
+        categoryRow.classList.add('expanded');
+        servicesContainer.classList.add('visible');
+        expandedCategoryId = categoryId;
+        
+        // Load services if not already loaded
+        if (!loadedCategories.has(categoryId)) {
+            await loadCategoryServices(categoryId, servicesContainer);
+        }
+    }
+    
+    // Load services for a category via AJAX
+    async function loadCategoryServices(categoryId, container) {
+        const categoryRow = document.querySelector(`tr[data-category-id="${categoryId}"]`);
+        categoryRow.classList.add('loading');
+        
+        try {
+            const response = await fetch(`/services/api/category-services/?category_id=${categoryId}&recipient_id=${currentRecipient}&year=${currentYear}&month=${currentMonth + 1}`);
+            const data = await response.json();
+            
+            if (data.success) {
+                renderServices(data.services, container);
+                loadedCategories.add(categoryId);
+                
+                // Apply lock state to new cells if needed
+                if (isLocked) {
+                    applyLockState();
+                }
+            } else {
+                console.error('Error loading services:', data.error);
+            }
+        } catch (error) {
+            console.error('Error loading services:', error);
+        } finally {
+            categoryRow.classList.remove('loading');
+        }
+    }
+    
+    // Render services HTML
+    function renderServices(services, container) {
+        container.innerHTML = '';
+        
+        services.forEach((service, index) => {
+            const tr = document.createElement('tr');
+            tr.dataset.serviceId = service.id;
+            tr.style.animationDelay = `${index * 0.05}s`;
+            
+            // Service number
+            const tdNumber = document.createElement('td');
+            tdNumber.className = 'service-number';
+            tdNumber.textContent = service.code;
+            tr.appendChild(tdNumber);
+            
+            // Service name
+            const tdName = document.createElement('td');
+            tdName.className = 'service-name service-name-clickable';
+            tdName.dataset.service = service.id;
+            tdName.title = 'Левый клик — заполнить строку, правый — сбросить';
+            tdName.innerHTML = service.name;
+            if (service.max_quantity_per_month) {
+                tdName.innerHTML += `<span class="ml-2 text-xs text-amber-600 font-normal" title="Ограничение в месяц">(макс. ${service.max_quantity_per_month})</span>`;
+            }
+            tdName.addEventListener('click', () => handleServiceNameClick(service.id));
+            tdName.addEventListener('contextmenu', (e) => handleServiceNameRightClick(e, service.id));
+            tr.appendChild(tdName);
+            
+            // Day cells
+            for (let day = 1; day <= daysInMonth; day++) {
+                const td = document.createElement('td');
+                const isWeekend = weekendsData.includes(day) || holidayDaysData.includes(day);
+                td.className = `day-cell count-0${isWeekend ? ' weekend-cell' : ''}`;
+                td.id = `cell-${service.id}-${day}`;
+                td.dataset.service = service.id;
+                td.dataset.day = day;
+                if (service.max_quantity_per_month) {
+                    td.dataset.max = service.max_quantity_per_month;
+                }
+                
+                // Set initial value from logs
+                const count = service.logs[day] || 0;
+                if (count > 0) {
+                    updateCellDisplay(td, count);
+                }
+                
+                td.addEventListener('click', handleCellClick);
+                td.addEventListener('contextmenu', handleCellRightClick);
+                
+                tr.appendChild(td);
+            }
+            
+            // Total cell
+            const tdTotal = document.createElement('td');
+            tdTotal.className = 'total-cell';
+            tdTotal.id = `total-${service.id}`;
+            tdTotal.innerHTML = service.total || '0';
+            if (service.max_quantity_per_month) {
+                tdTotal.innerHTML += `<span class="text-xs opacity-60">/${service.max_quantity_per_month}</span>`;
+            }
+            tr.appendChild(tdTotal);
+            
+            container.appendChild(tr);
+        });
+    }
+    
+    // Handle service name click (fill row)
+    function handleServiceNameClick(serviceId) {
+        if (isLocked) return;
+        
+        const cells = document.querySelectorAll(`[data-service="${serviceId}"].day-cell`);
+        const days = [];
+        cells.forEach(cell => {
+            const day = parseInt(cell.dataset.day);
+            const currentCount = parseInt(cell.dataset.count) || 0;
+            if (currentCount === 0) {
+                days.push(day);
+                updateCellDisplay(cell, 1);
+            }
+        });
+        
+        if (days.length > 0) {
+            saveServiceLogBatch(serviceId, days, 1);
+        }
+    }
+    
+    // Handle service name right click (reset row)
+    function handleServiceNameRightClick(e, serviceId) {
+        e.preventDefault();
+        if (isLocked) return;
+        
+        const cells = document.querySelectorAll(`[data-service="${serviceId}"].day-cell`);
+        const days = [];
+        cells.forEach(cell => {
+            const day = parseInt(cell.dataset.day);
+            const currentCount = parseInt(cell.dataset.count) || 0;
+            if (currentCount > 0) {
+                days.push(day);
+                updateCellDisplay(cell, 0);
+            }
+        });
+        
+        if (days.length > 0) {
+            saveServiceLogBatch(serviceId, days, 0);
+        }
+        
+        updateTotal(serviceId);
+    }
     
     // Apply visual lock state
     function applyLockState() {
@@ -726,40 +958,6 @@
         } catch (error) {
             console.error('Error:', error);
         }
-    }
-    
-    // Fill entire row with 1 (send as batch)
-    async function handleServiceNameClick(e) {
-        e.preventDefault();
-        const serviceId = e.target.closest('.service-name-clickable').dataset.service;
-        const cells = document.querySelectorAll(`[data-service="${serviceId}"].day-cell`);
-        
-        // Update UI immediately
-        cells.forEach(cell => {
-            updateCellDisplay(cell, 1);
-        });
-        updateTotal(serviceId);
-        
-        // Send batch request
-        const days = Array.from(cells).map(cell => parseInt(cell.dataset.day));
-        await saveServiceLogBatch(serviceId, days, 1);
-    }
-    
-    // Reset entire row to 0 (send as batch)
-    async function handleServiceNameRightClick(e) {
-        e.preventDefault();
-        const serviceId = e.target.closest('.service-name-clickable').dataset.service;
-        const cells = document.querySelectorAll(`[data-service="${serviceId}"].day-cell`);
-        
-        // Update UI immediately
-        cells.forEach(cell => {
-            updateCellDisplay(cell, 0);
-        });
-        updateTotal(serviceId);
-        
-        // Send batch request
-        const days = Array.from(cells).map(cell => parseInt(cell.dataset.day));
-        await saveServiceLogBatch(serviceId, days, 0);
     }
     
     // Batch save for entire row
@@ -940,30 +1138,24 @@
             const result = await response.json();
             
             if (result.success) {
-                // Очищаем все ячейки визуально
-                document.querySelectorAll('.day-cell').forEach(cell => {
-                    cell.textContent = '';
-                    cell.classList.remove('count-1', 'count-2', 'count-3', 'count-4');
-                    cell.classList.add('count-0');
-                });
+                // Сбрасываем загруженные категории
+                loadedCategories.clear();
                 
-                // Очищаем итоги
-                document.querySelectorAll('.total-cell').forEach(total => {
-                    // Сохраняем лимит если есть
-                    const limitSpan = total.querySelector('span');
-                    if (limitSpan) {
-                        total.textContent = '0';
-                        total.appendChild(limitSpan);
-                    } else {
-                        total.textContent = '0';
+                // Если есть раскрытая категория - обновляем её
+                if (expandedCategoryId !== null) {
+                    const container = document.getElementById(`category-services-${expandedCategoryId}`);
+                    if (container) {
+                        await loadCategoryServices(expandedCategoryId, container);
                     }
-                });
+                }
+                
+                showNotification('Табель очищен', 'success');
             } else {
-                alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+                showNotification('Ошибка: ' + (result.error || 'Неизвестная ошибка'), 'error');
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Ошибка при очистке услуг');
+            showNotification('Ошибка при очистке услуг', 'error');
         }
     }
     
@@ -997,30 +1189,20 @@
             const result = await response.json();
             
             if (result.success) {
-                // Получаем обновленные данные и обновляем таблицу без перезагрузки
-                const logsResponse = await fetch(`/services/api/service-logs/?recipient=${currentRecipient}&year=${currentYear}&month=${currentMonth + 1}`);
-                const logsData = await logsResponse.json();
+                // Сбрасываем загруженные категории, чтобы они перезагрузились с новыми данными
+                loadedCategories.clear();
                 
-                // Очищаем все ячейки
-                document.querySelectorAll('.day-cell').forEach(cell => {
-                    updateCellDisplay(cell, 0);
-                });
-                
-                // Заполняем ячейки новыми данными
-                for (const key in logsData.logs) {
-                    const [serviceId, day] = key.split('-');
-                    const count = logsData.logs[key];
-                    const cell = document.getElementById(`cell-${serviceId}-${day}`);
-                    if (cell && count > 0) {
-                        updateCellDisplay(cell, count);
+                // Если есть раскрытая категория - обновляем её
+                if (expandedCategoryId !== null) {
+                    const container = document.getElementById(`category-services-${expandedCategoryId}`);
+                    if (container) {
+                        await loadCategoryServices(expandedCategoryId, container);
                     }
                 }
                 
-                // Обновляем итоги для всех услуг
-                document.querySelectorAll('.service-name-clickable').forEach(cell => {
-                    const serviceId = cell.dataset.service;
-                    updateTotal(serviceId);
-                });
+                showNotification(result.message || 'Автозаполнение выполнено', 'success');
+            } else {
+                showNotification(result.error || 'Ошибка при автозаполнении', 'error');
             }
             
             // Восстанавливаем кнопку
@@ -1031,6 +1213,7 @@
             console.error('Error during autofill:', error);
             autofillBtn.innerHTML = originalText;
             autofillBtn.disabled = false;
+            showNotification('Ошибка при автозаполнении', 'error');
         }
     }
     

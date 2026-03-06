@@ -744,7 +744,9 @@ tar -czvf media_backup.tar.gz media/
 | `/recipients/<pk>/contract/` | edit_contract | Редактирование ИППСУ |
 | `/recipients/<pk>/change-status/` | change_status | Изменение статуса |
 | `/recipients/lists/` | lists_page | Страница списков |
-| `/recipients/lists/jubilees/` | jubilees_list | Юбиляры |
+| `/recipients/lists/residents/` | residents_list_page | Список проживающих (документ) |
+| `/recipients/lists/residents/print/` | residents_list_print | Печать списка проживающих |
+| `/recipients/lists/jubilees/` | jubilees_list | Список юбиляров |
 
 ### Reports
 | URL | View | Описание |

@@ -1,13 +1,20 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.translation import gettext_lazy as _
-from .models import User, Department
+from .models import User, Department, LocationType
+
+
+@admin.register(LocationType)
+class LocationTypeAdmin(admin.ModelAdmin):
+    list_display = ['name', 'code', 'is_active_status', 'requires_department', 'order']
+    list_editable = ['order']
+    ordering = ['order']
 
 
 @admin.register(Department)
 class DepartmentAdmin(admin.ModelAdmin):
-    list_display = ['name', 'code', 'department_type', 'is_mercy']
-    list_filter = ['department_type', 'is_mercy']
+    list_display = ['name', 'code', 'department_type']
+    list_filter = ['department_type']
     list_editable = ['department_type']
     search_fields = ['name', 'code']
 

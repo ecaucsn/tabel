@@ -135,8 +135,9 @@
 </head>
 <body>
     <h1>Табель учета социальных услуг</h1>
-    <div class="header-info">
-        {{ recipient.full_name }}, дата рождения: {{ recipient.birth_date|date:"d.m.Y" }}, месяц: {{ month_name }}, год: {{ year }}, отделение: {{ recipient.department.name }}
+    <div class="header-info" style="font-weight: bold; display: flex; justify-content: space-between;">
+        <span>{{ recipient.full_name }} {{ recipient.birth_date|date:"d.m.Y" }} г.р.  отделение {{ recipient.department.name }}</span>
+        <span>{{ month_name }} {{ year }}</span>
     </div>
     <table>
         <thead>

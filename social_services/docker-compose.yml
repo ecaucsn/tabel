@@ -24,13 +24,15 @@ services:
       - app-network
 
   db:
-    image: postgres:15-alpine
+    image: postgres:16-alpine
     container_name: social_services_db
     restart: unless-stopped
     environment:
       - POSTGRES_DB=social_services
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=${DB_PASSWORD:?DB_PASSWORD must be set}
+    ports:
+      - "5432:5432"
     volumes:
       # Persist database data on host
       - postgres_data:/var/lib/postgresql/data

@@ -1,0 +1,689 @@
+{% extends 'base.html' %}
+
+{% block title %}Создание заявки на продукты питания{% endblock %}
+
+{% block main_container_class %}w-full px-4 sm:px-6 lg:px-8 py-6{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Page Layout */
+    .purchase-page {
+        margin: 0;
+        padding: 0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    /* Header sections - fixed height */
+    .purchase-header {
+        flex-shrink: 0;
+    }
+    
+    /* Main content area - fills remaining space */
+    .main-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    /* Table container - fills remaining space */
+    .table-wrapper {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        padding: 0 1.5rem;
+        margin-top: 1rem;
+    }
+    
+    /* Table Styles */
+    .purchase-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        font-size: 12px;
+        flex: 1;
+    }
+    
+    .purchase-table th, .purchase-table td {
+        border: 1px solid #e2e8f0;
+        padding: 6px 8px;
+        text-align: center;
+        vertical-align: middle;
+    }
+    
+    .purchase-table th {
+        background: #f8fafc;
+        color: #475569;
+        font-weight: 600;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        position: sticky;
+        top: 0;
+        z-index: 20;
+    }
+    
+    .purchase-table th.bg-primary {
+        background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+        color: white;
+    }
+    
+    /* Sticky Columns */
+    .recipient-number {
+        width: 35px;
+        font-weight: 600;
+        color: #64748b;
+        background: #f8fafc;
+        position: sticky;
+        left: 0;
+        z-index: 15;
+    }
+    
+    .recipient-name {
+        min-width: 200px;
+        max-width: 300px;
+        text-align: left !important;
+        background: #f8fafc;
+        position: sticky;
+        left: 35px;
+        z-index: 15;
+        font-weight: 500;
+        color: #334155;
+    }
+    
+    th.recipient-number-header {
+        position: sticky;
+        left: 0;
+        z-index: 25;
+        width: 35px;
+    }
+    
+    th.recipient-name-header {
+        position: sticky;
+        left: 35px;
+        z-index: 25;
+    }
+    
+    /* Product Cells */
+    .product-cell {
+        width: 50px;
+        min-width: 50px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 12px;
+        border-radius: 4px;
+        transition: all 0.15s ease;
+        background: #f8fafc;
+        color: #64748b;
+    }
+    
+    .product-cell:hover {
+        transform: scale(1.05);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        z-index: 10;
+        position: relative;
+    }
+    
+    .product-cell.has-value {
+        background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+        color: white;
+    }
+    
+    .product-cell input {
+        width: 100%;
+        height: 100%;
+        border: none;
+        background: transparent;
+        text-align: center;
+        font-weight: 600;
+        font-size: 12px;
+        color: inherit;
+        outline: none;
+        min-height: 32px;
+    }
+    
+    .product-cell input:focus {
+        background: rgba(14, 165, 233, 0.1);
+        border-radius: 4px;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+    }
+    
+    .product-cell.has-value input {
+        color: white;
+    }
+    
+    /* Improved input handling */
+    .product-cell input[type="number"] {
+        -moz-appearance: textfield;
+    }
+    
+    .product-cell input::-webkit-inner-spin-button,
+    .product-cell input::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+    
+    /* Total Cell */
+    .total-cell {
+        background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+        font-weight: 700;
+        color: #78350f;
+        min-width: 60px;
+    }
+    
+    /* Total Row */
+    .total-row {
+        background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%) !important;
+    }
+    
+    .total-row td {
+        padding: 10px 8px;
+        font-weight: 700;
+        color: #1e40af;
+        font-size: 13px;
+    }
+    
+    /* Scrollable Container */
+    .table-container {
+        overflow-x: auto;
+        overflow-y: auto;
+        flex: 1;
+        min-height: 60vh;
+        max-height: none;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        background: white;
+    }
+    
+    /* Product header rotated text */
+    .product-header {
+        writing-mode: vertical-rl;
+        text-orientation: mixed;
+        transform: rotate(180deg);
+        min-height: 120px;
+        max-width: 60px;
+        padding: 8px 4px;
+        font-size: 10px;
+        line-height: 1.2;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        background: #f8fafc;
+    }
+    
+    .product-header .unit {
+        font-weight: 400;
+        color: #94a3b8;
+        font-size: 9px;
+    }
+    
+    /* Set type buttons */
+    .set-type-btn {
+        transition: all 0.15s ease;
+    }
+    
+    .set-type-btn.active {
+        transform: scale(1.05);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    /* Print Styles */
+    @media print {
+        .no-print { display: none !important; }
+        .purchase-page { margin: 0; padding: 0; }
+        .table-container { max-height: none; border: none; }
+        .purchase-table { font-size: 9px; }
+        .product-cell { width: 40px; min-width: 40px; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{% csrf_token %}
+<div class="purchase-page">
+    <!-- Header Section -->
+    <div class="purchase-header bg-white rounded-xl shadow-sm border border-slate-200 p-6 m-4 mb-4">
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <!-- Title with back button -->
+            <div class="flex items-center gap-4">
+                <a href="{% url 'dashboard' %}" class="p-2 hover:bg-slate-100 rounded-lg transition-colors" title="На главную">
+                    <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                    </svg>
+                </a>
+                <div>
+                    <h1 class="text-xl font-semibold text-slate-800">Заявка на обеспечение продуктами питания</h1>
+                    <p class="text-sm text-slate-500 mt-1">за счет личных средств ПСУ</p>
+                </div>
+            </div>
+            
+            <!-- Filters -->
+            <div class="flex flex-wrap items-center gap-3">
+                <div class="flex flex-col">
+                    <label class="text-xs font-medium text-slate-500 mb-1">Год</label>
+                    <select id="yearSelect" onchange="applyFilters()" 
+                            class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                        {% for y in years %}
+                        <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="flex flex-col">
+                    <label class="text-xs font-medium text-slate-500 mb-1">Месяц</label>
+                    <select id="monthSelect" onchange="applyFilters()"
+                            class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                        {% for m, m_name in months %}
+                        <option value="{{ m }}" {% if m == month %}selected{% endif %}>{{ m_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="flex flex-col">
+                    <label class="text-xs font-medium text-slate-500 mb-1">Отделение</label>
+                    <select id="departmentSelect" onchange="applyFilters()"
+                            class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 min-w-[180px]">
+                        <option value="">Все отделения</option>
+                        {% for dept in departments %}
+                        <option value="{{ dept.id }}" {% if dept.id|stringformat:"s" == selected_department %}selected{% endif %}>
+                            {{ dept.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Set Type Selection -->
+        <div class="mt-4 pt-4 border-t border-slate-200">
+            <label class="text-xs font-medium text-slate-500 mb-2 block">Набор продуктов:</label>
+            <div class="flex flex-wrap gap-2">
+                <button type="button" onclick="setSetType('full')" 
+                        class="set-type-btn px-4 py-2 rounded-lg text-sm font-medium transition-all {% if set_type == 'full' %}bg-primary-500 text-white{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
+                    📦 Полный набор
+                </button>
+                <button type="button" onclick="setSetType('reduced')" 
+                        class="set-type-btn px-4 py-2 rounded-lg text-sm font-medium transition-all {% if set_type == 'reduced' %}bg-primary-500 text-white{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
+                    📋 Сокращенный набор
+                </button>
+                <button type="button" onclick="setSetType('diet')" 
+                        class="set-type-btn px-4 py-2 rounded-lg text-sm font-medium transition-all {% if set_type == 'diet' %}bg-primary-500 text-white{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
+                    🥗 Диетическое питание
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Action Buttons -->
+    <div class="flex items-center justify-between px-4 mb-4 no-print">
+        <div class="flex items-center gap-2">
+            <a href="{% url 'modules:requests' %}" 
+               class="inline-flex items-center px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg transition-colors">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                История заявок
+            </a>
+        </div>
+        <div class="flex items-center gap-2">
+            <button type="button" onclick="clearAll()" 
+                    class="inline-flex items-center px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+                Очистить
+            </button>
+            <button type="button" onclick="autoFillSet()" 
+                    class="inline-flex items-center px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-lg transition-colors">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+                Автозаполнение
+            </button>
+            <button type="button" onclick="saveAll()" 
+                    class="inline-flex items-center px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-medium rounded-lg transition-colors">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                </svg>
+                Сохранить
+            </button>
+            <button type="button" onclick="printTable()" 
+                    class="inline-flex items-center px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium rounded-lg transition-colors">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                </svg>
+                Печать
+            </button>
+        </div>
+    </div>
+    
+    <!-- Table Section -->
+    <div class="table-wrapper">
+        <div class="table-container">
+            <table class="purchase-table">
+                <thead>
+                    <tr>
+                        <th class="recipient-number-header bg-primary">№ п/п</th>
+                        <th class="recipient-name-header bg-primary">ФИО</th>
+                        {% for product in products %}
+                        <th class="product-header bg-slate-50" title="{{ product.name }} ({{ product.unit }})">
+                            {{ product.name }}
+                            <span class="unit">({{ product.unit }})</span>
+                        </th>
+                        {% endfor %}
+                        <th class="bg-primary">Итого</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for recipient in recipients %}
+                    <tr data-recipient-id="{{ recipient.id }}">
+                        <td class="recipient-number">{{ forloop.counter }}</td>
+                        <td class="recipient-name">{{ recipient.full_name }}</td>
+                        {% for product in products %}
+                        <td class="product-cell" 
+                            data-recipient="{{ recipient.id }}" 
+                            data-product="{{ product.id }}"
+                            data-product-name="{{ product.name }}">
+                            <input type="number" 
+                                   min="0" 
+                                   step="1" 
+                                   value=""
+                                   onchange="onCellChange(this)"
+                                   onclick="this.select()">
+                        </td>
+                        {% endfor %}
+                        <td class="total-cell" data-recipient-total="{{ recipient.id }}">0</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="{{ products|length|add:3 }}" class="text-center py-12">
+                            <div class="flex flex-col items-center">
+                                <svg class="w-12 h-12 text-slate-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                                </svg>
+                                <p class="text-slate-500 font-medium">Выберите отделение для отображения проживающих</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    
+                    <!-- Total Row -->
+                    {% if recipients %}
+                    <tr class="total-row">
+                        <td colspan="2" class="text-right font-bold">ИТОГО:</td>
+                        {% for product in products %}
+                        <td class="product-total" data-product-total="{{ product.id }}">0</td>
+                        {% endfor %}
+                        <td class="grand-total font-bold">0</td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+</div>
+
+<script>
+// Global state
+let currentYear = {{ year }};
+let currentMonth = {{ month }};
+let currentDepartment = '{{ selected_department }}';
+let currentSetType = '{{ set_type|default:"full" }}';
+const products = {{ products_json|safe }};
+const existingData = {{ existing_data|safe }};
+
+// Month names
+const monthNames = {
+    1: 'Январь', 2: 'Февраль', 3: 'Март', 4: 'Апрель',
+    5: 'Май', 6: 'Июнь', 7: 'Июль', 8: 'Август',
+    9: 'Сентябрь', 10: 'Октябрь', 11: 'Ноябрь', 12: 'Декабрь'
+};
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadExistingData();
+    calculateTotals();
+});
+
+// Apply filters
+function applyFilters() {
+    const year = document.getElementById('yearSelect').value;
+    const month = document.getElementById('monthSelect').value;
+    const department = document.getElementById('departmentSelect').value;
+    
+    const params = new URLSearchParams();
+    params.append('year', year);
+    params.append('month', month);
+    if (department) params.append('department', department);
+    if (currentSetType) params.append('set_type', currentSetType);
+    
+    window.location.href = window.location.pathname + '?' + params.toString();
+}
+
+// Set type selection
+function setSetType(type) {
+    currentSetType = type;
+    const params = new URLSearchParams(window.location.search);
+    params.set('set_type', type);
+    window.location.href = window.location.pathname + '?' + params.toString();
+}
+
+// Load existing data into table
+function loadExistingData() {
+    if (!existingData) return;
+    
+    Object.keys(existingData).forEach(recipientId => {
+        const recipientData = existingData[recipientId];
+        Object.keys(recipientData).forEach(productId => {
+            const cell = document.querySelector(`td[data-recipient="${recipientId}"][data-product="${productId}"]`);
+            if (cell) {
+                const input = cell.querySelector('input');
+                if (input && recipientData[productId]) {
+                    input.value = recipientData[productId];
+                    cell.classList.add('has-value');
+                }
+            }
+        });
+    });
+    
+    calculateTotals();
+}
+
+// On cell change
+function onCellChange(input) {
+    const cell = input.closest('td');
+    const value = parseInt(input.value) || 0;
+    
+    if (value > 0) {
+        cell.classList.add('has-value');
+    } else {
+        cell.classList.remove('has-value');
+        input.value = '';
+    }
+    
+    calculateTotals();
+}
+
+// Calculate all totals
+function calculateTotals() {
+    // Calculate row totals
+    document.querySelectorAll('tr[data-recipient-id]').forEach(row => {
+        const recipientId = row.dataset.recipientId;
+        let rowTotal = 0;
+        
+        row.querySelectorAll('.product-cell input').forEach(input => {
+            rowTotal += parseInt(input.value) || 0;
+        });
+        
+        const totalCell = row.querySelector('.total-cell');
+        if (totalCell) {
+            totalCell.textContent = rowTotal;
+        }
+    });
+    
+    // Calculate column totals
+    products.forEach(product => {
+        let colTotal = 0;
+        document.querySelectorAll(`td[data-product="${product.id}"] input`).forEach(input => {
+            colTotal += parseInt(input.value) || 0;
+        });
+        
+        const totalCell = document.querySelector(`td[data-product-total="${product.id}"]`);
+        if (totalCell) {
+            totalCell.textContent = colTotal;
+        }
+    });
+    
+    // Calculate grand total
+    let grandTotal = 0;
+    document.querySelectorAll('.total-cell[data-recipient-total]').forEach(cell => {
+        grandTotal += parseInt(cell.textContent) || 0;
+    });
+    
+    const grandTotalCell = document.querySelector('.grand-total');
+    if (grandTotalCell) {
+        grandTotalCell.textContent = grandTotal;
+    }
+}
+
+// Clear all
+function clearAll() {
+    if (!confirm('Очистить все данные таблицы?')) return;
+    
+    document.querySelectorAll('.product-cell input').forEach(input => {
+        input.value = '';
+        input.closest('td').classList.remove('has-value');
+    });
+    
+    calculateTotals();
+}
+
+// Auto fill based on set type
+function autoFillSet() {
+    const setProducts = {
+        'full': {
+            // Полный набор - все продукты по 1, кроме воды (2) и станков (5)
+        },
+        'reduced': {
+            // Сокращенный набор - основные продукты
+        },
+        'diet': {
+            // Диетическое питание - специальные продукты
+        }
+    };
+    
+    // Default values for full set (based on Excel)
+    const defaultValues = {
+        'full': {
+            // product_id: quantity
+        }
+    };
+    
+    // Fill with default values for full set
+    document.querySelectorAll('tr[data-recipient-id]').forEach(row => {
+        // Water - 2 bottles
+        row.querySelectorAll('.product-cell').forEach((cell, index) => {
+            const input = cell.querySelector('input');
+            if (index === 0) { // First product (water)
+                input.value = 2;
+                cell.classList.add('has-value');
+            } else if ([1, 2, 3, 5, 6, 8, 9, 10, 12, 13, 15, 17, 18, 24].includes(index)) {
+                // Standard products
+                input.value = 1;
+                cell.classList.add('has-value');
+            } else if (index === 4) {
+                // Razors - 5 pieces
+                input.value = 5;
+                cell.classList.add('has-value');
+            }
+        });
+    });
+    
+    calculateTotals();
+    alert('Таблица заполнена стандартным набором продуктов');
+}
+
+// Save all data
+function saveAll() {
+    const data = [];
+    
+    document.querySelectorAll('tr[data-recipient-id]').forEach(row => {
+        const recipientId = row.dataset.recipientId;
+        
+        row.querySelectorAll('.product-cell').forEach(cell => {
+            const productId = cell.dataset.product;
+            const input = cell.querySelector('input');
+            const quantity = parseInt(input.value) || 0;
+            
+            if (quantity > 0) {
+                data.push({
+                    recipient_id: recipientId,
+                    product_id: productId,
+                    quantity: quantity
+                });
+            }
+        });
+    });
+    
+    // Send to server
+    fetch('{% url "modules:monthly_purchase_save" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify({
+            year: currentYear,
+            month: currentMonth,
+            department_id: currentDepartment,
+            items: data
+        })
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert('Данные успешно сохранены');
+        } else {
+            alert('Ошибка сохранения: ' + (result.error || 'Неизвестная ошибка'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Ошибка соединения с сервером');
+    });
+}
+
+// Print table
+function printTable() {
+    window.print();
+}
+
+// Ensure product headers remain visible during horizontal scroll
+document.addEventListener('DOMContentLoaded', function() {
+    const tableContainer = document.querySelector('.table-container');
+    
+    if (tableContainer) {
+        // Make sure header remains visible during horizontal scroll
+        const handleScroll = () => {
+            // For horizontal scroll, we need to maintain the header position
+            // This is handled by CSS sticky positioning, but we'll ensure it works properly
+            const headers = document.querySelectorAll('.product-header, .recipient-number-header, .recipient-name-header');
+            
+            // Update position of headers to account for horizontal scroll
+            headers.forEach(header => {
+                // Headers should maintain their position regardless of horizontal scrolling
+                // This is mainly handled by CSS position: sticky, but we ensure no conflicts
+                header.style.position = 'sticky';
+            });
+        };
+        
+        tableContainer.addEventListener('scroll', handleScroll);
+    }
+});
+</script>
+{% endblock %}

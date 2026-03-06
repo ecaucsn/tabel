@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import ServiceCategory, Service, ServiceLog, ServiceFrequency, ServiceSchedule
+from .models import ServiceCategory, Service, ServiceLog, ServiceFrequency, ServiceSchedule, ServiceRecipient, TabelLock
 
 
 class ServiceInline(admin.TabularInline):
@@ -12,6 +12,13 @@ class ServiceScheduleInline(admin.TabularInline):
     model = ServiceSchedule
     extra = 0
     fields = ['department', 'day_of_week', 'quantity']
+
+
+class ServiceRecipientInline(admin.TabularInline):
+    model = ServiceRecipient
+    extra = 0
+    fields = ['recipient', 'is_active']
+    raw_id_fields = ['recipient']
 
 
 @admin.register(ServiceFrequency)
@@ -45,7 +52,7 @@ class ServiceAdmin(admin.ModelAdmin):
     list_filter = ['category', 'is_active', 'parent', 'frequency']
     search_fields = ['code', 'name']
     list_editable = ['price', 'frequency', 'is_active']
-    inlines = [ServiceScheduleInline]
+    inlines = [ServiceScheduleInline, ServiceRecipientInline]
 
 
 @admin.register(ServiceLog)
@@ -63,3 +70,25 @@ class ServiceScheduleAdmin(admin.ModelAdmin):
     list_filter = ['department', 'day_of_week', 'service__category']
     search_fields = ['service__code', 'service__name']
     list_editable = ['quantity']
+
+
+@admin.register(ServiceRecipient)
+class ServiceRecipientAdmin(admin.ModelAdmin):
+    list_display = ['service', 'recipient', 'is_active', 'created_at']
+    list_filter = ['service', 'is_active', 'recipient__department']
+    search_fields = ['service__code', 'service__name', 'recipient__last_name', 'recipient__first_name']
+    list_editable = ['is_active']
+    raw_id_fields = ['service', 'recipient', 'created_by']
+    date_hierarchy = 'created_at'
+    ordering = ['service__code', 'recipient__last_name']
+
+
+@admin.register(TabelLock)
+class TabelLockAdmin(admin.ModelAdmin):
+    list_display = ['recipient', 'year', 'month', 'is_locked', 'locked_by', 'locked_at']
+    list_filter = ['is_locked', 'year', 'month', 'recipient__department']
+    search_fields = ['recipient__last_name', 'recipient__first_name']
+    list_editable = ['is_locked']
+    raw_id_fields = ['recipient', 'locked_by']
+    date_hierarchy = 'locked_at'
+    ordering = ['-year', '-month', 'recipient__last_name']

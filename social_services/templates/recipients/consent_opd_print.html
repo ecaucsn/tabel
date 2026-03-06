@@ -1,0 +1,237 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Согласие на обработку персональных данных - {{ recipient.full_name }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 1.5cm 2cm;
+        }
+        
+        body {
+            font-family: "Times New Roman", Times, serif;
+            font-size: 12pt;
+            line-height: 1.3;
+            color: #000;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .document {
+            max-width: 100%;
+            margin: 0 auto;
+        }
+        
+        .title {
+            text-align: center;
+            font-weight: bold;
+            font-size: 12pt;
+            margin-bottom: 0.8em;
+            line-height: 1.3;
+        }
+        
+        .section {
+            margin-bottom: 0.4em;
+            text-align: justify;
+        }
+        
+        .field {
+            border-bottom: 1px solid #000;
+            display: inline-block;
+            min-width: 150px;
+            text-align: center;
+        }
+        
+        .field-long {
+            border-bottom: 1px solid #000;
+            display: block;
+            margin: 0.2em 0;
+            min-height: 1.2em;
+        }
+        
+        .comment {
+            font-size: 10pt;
+            color: #666;
+            text-align: center;
+            margin-top: 0.1em;
+        }
+        
+        .indent {
+            text-indent: 1.5em;
+        }
+        
+        .bold {
+            font-weight: bold;
+        }
+        
+        .signature-block {
+            margin-top: 1.5em;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+        
+        .signature-left {
+            text-align: left;
+        }
+        
+        .signature-right {
+            text-align: right;
+        }
+        
+        .signature-line {
+            border-bottom: 1px solid #000;
+            display: inline-block;
+            width: 120px;
+            margin: 0 0.3em;
+        }
+        
+        .organization-name {
+            font-weight: bold;
+        }
+        
+        ul {
+            margin: 0.3em 0;
+            padding-left: 2em;
+        }
+        
+        li {
+            margin-bottom: 0.1em;
+        }
+        
+        .small-text {
+            font-size: 11pt;
+        }
+        
+        @media print {
+            body {
+                font-size: 11pt;
+            }
+            
+            .no-print {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="document">
+        <div class="title">
+            СОГЛАСИЕ ЗАКОННОГО ПРЕДСТАВИТЕЛЯ<br>
+            НА ОБРАБОТКУ ПЕРСОНАЛЬНЫХ ДАННЫХ<br>
+            недееспособного, находящегося под опекой
+        </div>
+        
+        <div class="section">
+            Я, <span class="field" style="min-width: 350px;">{{ recipient.full_name }}</span>
+            <div class="comment">(фамилия, имя, отчество полностью)</div>
+        </div>
+        
+        <div class="section">
+            паспорт серия _______ № __________ выдан «___» _________________ г.
+            <div class="field-long"></div>
+            <div class="comment">(кем выдан)</div>
+        </div>
+        
+        <div class="section">
+            проживающий по адресу: <span class="field-long" style="display: inline-block; width: auto;"></span>
+        </div>
+        
+        <div class="section">
+            номер телефона: ________________, даю 
+            <span class="organization-name">государственному казенному учреждению Пензенской области «Сосновский дом социального обслуживания»</span> 
+            (ОГРН: 1025800680180, ИНН: 5809012030), юридический адрес: 442722, Пензенская область, Бессоновский район, с. Сосновка, ул. Заречная д. 8, 
+            согласие на обработку своих персональных данных.
+        </div>
+        
+        <div class="section" style="margin-top: 0.8em;">
+            <div class="bold">В лице представителя субъекта персональных данных</div>
+            <div class="comment">(заполняется в случае получения согласия от представителя субъекта персональных данных)</div>
+        </div>
+        
+        <div class="section">
+            <div class="field-long"></div>
+            <div class="comment">(фамилия, имя, отчество полностью)</div>
+        </div>
+        
+        <div class="section">
+            паспорт серия ____ № ______ выдан «__» ________________________________________
+            <div class="field-long"></div>
+            <div class="comment">(кем выдан)</div>
+        </div>
+        
+        <div class="section">
+            проживающий по адресу: <span class="field-long" style="display: inline-block; width: auto;"></span>
+        </div>
+        
+        <div class="section">
+            действующий от имени субъекта персональных данных на основании
+            <div class="field-long"></div>
+            <div class="comment">(реквизиты доверенности или иного документа, подтверждающего полномочия представителя)</div>
+        </div>
+        
+        <div class="section" style="margin-top: 0.6em;">
+            <div class="bold">Цель получения, обработки и передачи персональных данных:</div>
+            <p class="indent small-text">
+                оказание государственной услуги по признанию граждан нуждающимися в социальном обслуживании на территории Пензенской области (далее – государственная услуга).
+            </p>
+        </div>
+        
+        <div class="section">
+            <div class="bold">Перечень персональных данных, на получение, обработку и передачу, которых дается согласие:</div>
+            <p class="small-text" style="margin: 0.2em 0;">
+                фамилия, имя, отчество; дата, место рождения; адрес регистрации или фактического жительства; семейное положение (сведения о заключении брака, о расторжении брака, сведения о рождении); состав семьи; ИНН, СНИЛС, номер телефона, паспортные данные; группа инвалидности при наличии; сведения медико-социальной экспертизы (МСЭ); индивидуальная программа инвалида (ИПРА); сведения о жилищно-бытовых условиях при составлении акта обследования условий жизнедеятельности гражданина; информация о состоянии здоровья (предоставляется исключительно в исполнение требований действующего законодательства о социальном обслуживании населения).
+            </p>
+        </div>
+        
+        <div class="section">
+            <p class="indent small-text">
+                Гарантирует обработку персональных данных недееспособного в соответствии с действующим законодательством Российской Федерации как неавтоматизированным, так и автоматизированным способами.
+            </p>
+        </div>
+        
+        <div class="section">
+            <p class="indent small-text">
+                Данное согласие действует до достижения целей обработки персональных данных или в течение срока хранения информации.
+            </p>
+        </div>
+        
+        <div class="section">
+            <p class="indent small-text">
+                Данное согласие может быть отозвано в любой момент по моему письменному заявлению.
+            </p>
+        </div>
+        
+        <div class="section">
+            <p class="indent small-text">
+                Я подтверждаю, что, давая такое согласие, я действую по собственной воле и в интересах недееспособного.
+            </p>
+        </div>
+        
+        <div class="signature-block">
+            <div class="signature-left">
+                <div class="bold">Директор</div>
+                <div>ГАУСО ПО «Сосновский ДСО»</div>
+            </div>
+            <div class="signature-right">
+                <span class="signature-line"></span> / <span class="signature-line"></span>
+                <div style="margin-top: 0.2em; font-size: 11pt;">А.В. Гущин</div>
+            </div>
+        </div>
+        
+        <div style="margin-top: 1em; text-align: right;">
+            «___» _________________ {{ today|date:"Y" }} г.
+        </div>
+    </div>
+    
+    <script>
+        // Автоматическая печать при загрузке
+        window.onload = function() {
+            window.print();
+        };
+    </script>
+</body>
+</html>

@@ -3,15 +3,38 @@ from django.db import models
 from django.conf import settings
 
 
+class LocationType(models.Model):
+    """Тип местоположения проживающего"""
+    
+    code = models.CharField('Код', max_length=20, unique=True)
+    name = models.CharField('Название', max_length=100)
+    is_active_status = models.BooleanField(
+        'Активный статус',
+        default=True,
+        help_text='Активен ли проживающий в этом статусе'
+    )
+    requires_department = models.BooleanField(
+        'Требует отделения',
+        default=True,
+        help_text='Нужно ли выбирать отделение для этого типа размещения'
+    )
+    order = models.PositiveIntegerField('Порядок', default=0)
+    
+    class Meta:
+        verbose_name = 'Тип местоположения'
+        verbose_name_plural = 'Типы местоположения'
+        ordering = ['order', 'name']
+    
+    def __str__(self):
+        return self.name
+
+
 class Department(models.Model):
-    """Отделение учреждения"""
+    """Отделение учреждения (только реальные отделения)"""
     
     DEPARTMENT_TYPES = [
         ('residential', 'Проживания'),  # Обычное отделение (1, 2, 3, 4 и т.д.)
         ('mercy', 'Милосердие'),        # Отделение милосердия
-        ('hospital', 'Больница'),       # Больница
-        ('vacation', 'Отпуск'),         # Отпуск
-        ('deceased', 'Умер'),           # Выбыл (умер)
     ]
     
     name = models.CharField('Название', max_length=100)
@@ -21,9 +44,8 @@ class Department(models.Model):
         max_length=20,
         choices=DEPARTMENT_TYPES,
         default='residential',
-        help_text='Определяет статус проживающего'
+        help_text='Тип отделения'
     )
-    is_mercy = models.BooleanField('Отделение милосердия', default=False)
     capacity = models.PositiveIntegerField('Количество мест', default=0, help_text='Максимальное количество проживающих')
     description = models.TextField('Описание', blank=True, default='')
     
@@ -36,16 +58,9 @@ class Department(models.Model):
         return self.name
     
     @property
-    def status_code(self):
-        """Возвращает код статуса для проживающих в этом отделении"""
-        type_to_status = {
-            'residential': 'active',
-            'mercy': 'active',
-            'hospital': 'hospital',
-            'vacation': 'vacation',
-            'deceased': 'discharged',
-        }
-        return type_to_status.get(self.department_type, 'active')
+    def is_mercy(self):
+        """Является ли отделением милосердия"""
+        return self.department_type == 'mercy'
 
 
 class User(AbstractUser):

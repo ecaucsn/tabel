@@ -177,24 +177,10 @@
                         <span>Проживающие</span>
                     </span>
                 </a>
-                <a href="{% url 'services:list' %}" 
-                   class="px-4 py-3 text-sm font-medium border-b-2 transition-colors
-                          {% if '/services/list' in request.path %}
-                              border-primary-500 text-primary-600
-                          {% else %}
-                              border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300
-                          {% endif %}">
-                    <span class="flex items-center space-x-2">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
-                        </svg>
-                        <span>Услуги</span>
-                    </span>
-                </a>
-                <!-- Формы - выпадающее меню -->
+                <!-- Соц - выпадающее меню -->
                 <div class="relative group">
                     <button class="px-4 py-3 text-sm font-medium border-b-2 transition-colors
-                                   {% if 'contract' in request.path or 'tabel' in request.path or 'reports' in request.path or 'lists' in request.path %}
+                                   {% if 'contract' in request.path or 'tabel' in request.path or 'reports' in request.path or '/services/list' in request.path %}
                                        border-primary-500 text-primary-600
                                    {% else %}
                                        border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300
@@ -203,7 +189,7 @@
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                             </svg>
-                            <span>Формы</span>
+                            <span>Услуги</span>
                             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                             </svg>
@@ -213,21 +199,62 @@
                                 opacity-0 invisible group-hover:opacity-100 group-hover:visible 
                                 transition-all duration-150">
                         <div class="py-1">
+                            <a href="{% url 'services:list' %}" 
+                               class="block px-4 py-2 text-sm {% if '/services/list' in request.path %}text-primary-600 bg-primary-50{% else %}text-slate-700 hover:bg-slate-100{% endif %}">
+                                Услуги
+                            </a>
                             <a href="{% url 'recipients:contract_list' %}" 
                                class="block px-4 py-2 text-sm {% if 'contract' in request.path %}text-primary-600 bg-primary-50{% else %}text-slate-700 hover:bg-slate-100{% endif %}">
                                 ИППСУ
                             </a>
                             <a href="{% url 'services:tabel' %}" 
-                               class="block px-4 py-2 text-sm {% if 'tabel' in request.path %}text-primary-600 bg-primary-50{% else %}text-slate-700 hover:bg-slate-100{% endif %}">
+                               class="block px-4 py-2 text-sm {% if 'tabel' in request.path and 'assign' not in request.path %}text-primary-600 bg-primary-50{% else %}text-slate-700 hover:bg-slate-100{% endif %}">
                                 Табель
                             </a>
-                            <a href="{% url 'reports:act_generator' %}" 
+                               <a href="{% url 'services:assign_tabel' %}" 
+                               class="block px-4 py-2 text-sm {% if '/services/assign-tabel' in request.path %}text-primary-600 bg-primary-50{% else %}text-slate-700 hover:bg-slate-100{% endif %}">
+                                Групповой табель
+                            </a>
+                            <a href="{% url 'reports:act_generator' %}"
                                class="block px-4 py-2 text-sm {% if 'reports' in request.path %}text-primary-600 bg-primary-50{% else %}text-slate-700 hover:bg-slate-100{% endif %}">
                                 Акт
                             </a>
-                            <a href="{% url 'recipients:lists' %}" 
-                               class="block px-4 py-2 text-sm {% if '/lists' in request.path %}text-primary-600 bg-primary-50{% else %}text-slate-700 hover:bg-slate-100{% endif %}">
-                                Списки
+                        </div>
+                    </div>
+                </div>
+                <!-- Документы - выпадающее меню -->
+                <div class="relative group">
+                    <button class="px-4 py-3 text-sm font-medium border-b-2 transition-colors
+                                   {% if '/lists/' in request.path %}
+                                       border-primary-500 text-primary-600
+                                   {% else %}
+                                       border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300
+                                   {% endif %}">
+                        <span class="flex items-center space-x-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                            <span>Документы</span>
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </span>
+                    </button>
+                    <div class="absolute left-0 top-full w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50
+                                opacity-0 invisible group-hover:opacity-100 group-hover:visible
+                                transition-all duration-150">
+                        <div class="py-1">
+                            <a href="{% url 'recipients:residents_list' %}"
+                               class="block px-4 py-2 text-sm {% if '/lists/residents' in request.path and 'print' not in request.path %}text-primary-600 bg-primary-50{% else %}text-slate-700 hover:bg-slate-100{% endif %}">
+                                Список проживающих
+                            </a>
+                            <a href="{% url 'recipients:jubilees' %}"
+                               class="block px-4 py-2 text-sm {% if '/lists/jubilees' in request.path %}text-primary-600 bg-primary-50{% else %}text-slate-700 hover:bg-slate-100{% endif %}">
+                                Список юбиляров
+                            </a>
+                            <a href="{% url 'recipients:consent_opd' %}"
+                               class="block px-4 py-2 text-sm {% if '/lists/consent-opd' in request.path %}text-primary-600 bg-primary-50{% else %}text-slate-700 hover:bg-slate-100{% endif %}">
+                                Согласие на ОПД
                             </a>
                         </div>
                     </div>
@@ -254,13 +281,17 @@
                                 opacity-0 invisible group-hover:opacity-100 group-hover:visible 
                                 transition-all duration-150">
                         <div class="py-1">
-                            <a href="{% url 'modules:requests' %}" 
-                               class="block px-4 py-2 text-sm {% if '/modules/requests' in request.path %}text-primary-600 bg-primary-50{% else %}text-slate-700 hover:bg-slate-100{% endif %}">
+                            <a href="{% url 'modules:monthly_purchase_create' %}" 
+                               class="block px-4 py-2 text-sm {% if '/modules/monthly-purchase' in request.path %}text-primary-600 bg-primary-50{% else %}text-slate-700 hover:bg-slate-100{% endif %}">
                                 Заявки
                             </a>
                             <a href="{% url 'modules:digital_profile' %}" 
                                class="block px-4 py-2 text-sm {% if '/modules/digital-profile' in request.path %}text-primary-600 bg-primary-50{% else %}text-slate-700 hover:bg-slate-100{% endif %}">
                                 Цифровой профиль
+                            </a>
+                            <a href="{% url 'modules:pensions' %}" 
+                               class="block px-4 py-2 text-sm {% if '/modules/pensions' in request.path %}text-primary-600 bg-primary-50{% else %}text-slate-700 hover:bg-slate-100{% endif %}">
+                                Пенсии
                             </a>
                         </div>
                     </div>
