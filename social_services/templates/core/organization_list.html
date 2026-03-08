@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+
+{% block title %}Организации-исполнители{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-800">Организации-исполнители</h1>
+            <p class="text-sm text-slate-500 mt-1">Справочник организаций, оказывающих социальные услуги</p>
+        </div>
+        <a href="/admin/core/organization/add/" class="inline-flex items-center px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium rounded-lg transition-colors">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            Добавить организацию
+        </a>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
+        <form method="get" class="flex flex-col sm:flex-row gap-4">
+            <div class="flex-1">
+                <input type="text" 
+                       name="search" 
+                       value="{{ search }}" 
+                       placeholder="Поиск по названию или ИНН..."
+                       class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+            </div>
+            <div class="flex gap-2">
+                <select name="is_active" class="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                    <option value="">Все статусы</option>
+                    <option value="true" {% if is_active == 'true' %}selected{% endif %}>Активные</option>
+                    <option value="false" {% if is_active == 'false' %}selected{% endif %}>Неактивные</option>
+                </select>
+                <button type="submit" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors">
+                    Найти
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Organizations List -->
+    {% if organizations %}
+    <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+        <table class="min-w-full divide-y divide-slate-200">
+            <thead class="bg-slate-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Организация</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">ИНН/КПП/ОГРН</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Телефон</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Руководитель</th>
+                    <th class="px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">Сотрудников</th>
+                    <th class="px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">Статус</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Действия</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-slate-200">
+                {% for org in organizations %}
+                <tr class="hover:bg-slate-50 transition-colors">
+                    <td class="px-6 py-4">
+                        <div class="flex items-center">
+                            <div class="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center mr-3">
+                                <svg class="w-5 h-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <div class="text-sm font-medium text-slate-900">{{ org.name }}</div>
+                                {% if org.short_name %}
+                                <div class="text-xs text-slate-500">{{ org.short_name }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 text-sm text-slate-500">
+                        <div>{% if org.inn %}ИНН: {{ org.inn }}{% endif %}</div>
+                        <div>{% if org.kpp %}КПП: {{ org.kpp }}{% endif %}</div>
+                        <div>{% if org.ogrn %}ОГРН: {{ org.ogrn }}{% endif %}</div>
+                    </td>
+                    <td class="px-6 py-4 text-sm text-slate-500">
+                        {{ org.phone|default:"—" }}
+                    </td>
+                    <td class="px-6 py-4 text-sm">
+                        {% if org.director %}
+                        <a href="{% url 'employee_detail' org.director.pk %}" class="text-primary-600 hover:text-primary-700">
+                            {{ org.director.get_full_name }}
+                        </a>
+                        {% else %}
+                        <span class="text-slate-400">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            {{ org.employee_count }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                        {% if org.is_active %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            Активна
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            Неактивна
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 text-right text-sm">
+                        <a href="{% url 'organization_detail' org.pk %}" class="text-primary-600 hover:text-primary-700 mr-3">
+                            Просмотр
+                        </a>
+                        <a href="/admin/core/organization/{{ org.pk }}/change/" class="text-slate-600 hover:text-slate-700">
+                            Редактировать
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-12 text-center">
+        <svg class="w-12 h-12 text-slate-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+        </svg>
+        <p class="text-slate-500">Организации не найдены</p>
+        {% if search or is_active %}
+        <a href="{% url 'organizations' %}" class="text-primary-600 hover:text-primary-700 text-sm mt-2 inline-block">
+            Сбросить фильтры
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

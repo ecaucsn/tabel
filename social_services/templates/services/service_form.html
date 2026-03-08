@@ -1,0 +1,174 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if service %}Редактирование услуги{% else %}Новая услуга{% endif %}{% endblock %}
+
+{% block content %}
+<div class="py-6">
+    <!-- Header -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mx-4 mb-4">
+        <div class="flex items-center gap-4">
+            <a href="{% url 'services:list' %}" class="p-2 hover:bg-slate-100 rounded-lg transition-colors" title="Назад к списку">
+                <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+            </a>
+            <div>
+                <h1 class="text-xl font-semibold text-slate-800">
+                    {% if service %}Редактирование услуги{% else %}Новая услуга{% endif %}
+                </h1>
+                <p class="text-sm text-slate-500 mt-1">
+                    {% if service %}Измените данные услуги и сохраните{% else %}Заполните данные для создания новой услуги{% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Form -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mx-4">
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+            
+            <!-- Основные данные -->
+            <div class="border-b border-slate-200 pb-6">
+                <h2 class="text-lg font-semibold text-slate-800 mb-4">Основные данные</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- Код услуги -->
+                    <div>
+                        <label for="code" class="block text-sm font-medium text-slate-700 mb-1">
+                            Код услуги <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" id="code" name="code" required
+                               value="{% if service %}{{ service.code }}{% endif %}"
+                               placeholder="Например: 1.1"
+                               class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                        <p class="text-xs text-slate-400 mt-1">Уникальный код услуги</p>
+                    </div>
+                    
+                    <!-- Наименование -->
+                    <div class="md:col-span-2">
+                        <label for="name" class="block text-sm font-medium text-slate-700 mb-1">
+                            Наименование услуги <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" id="name" name="name" required
+                               value="{% if service %}{{ service.name }}{% endif %}"
+                               placeholder="Полное наименование услуги"
+                               class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                    </div>
+                    
+                    <!-- Категория -->
+                    <div>
+                        <label for="category" class="block text-sm font-medium text-slate-700 mb-1">
+                            Категория <span class="text-red-500">*</span>
+                        </label>
+                        <select id="category" name="category" required
+                                class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                            <option value="">Выберите категорию</option>
+                            {% for cat in categories %}
+                            <option value="{{ cat.id }}" {% if service and service.category.id == cat.id %}selected{% endif %}>
+                                {{ cat.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <!-- Родительская услуга -->
+                    <div>
+                        <label for="parent" class="block text-sm font-medium text-slate-700 mb-1">
+                            Родительская услуга
+                        </label>
+                        <select id="parent" name="parent"
+                                class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                            <option value="">Нет (основная услуга)</option>
+                            {% for ps in parent_services %}
+                            <option value="{{ ps.id }}" {% if service and service.parent_id == ps.id %}selected{% endif %}>
+                                {{ ps.code }}. {{ ps.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <p class="text-xs text-slate-400 mt-1">Выберите, если это подуслуга</p>
+                    </div>
+                    
+                    <!-- Активность -->
+                    <div class="flex items-center">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" name="is_active" 
+                                   {% if not service or service.is_active %}checked{% endif %}
+                                   class="h-4 w-4 text-primary-600 border-slate-300 rounded focus:ring-primary-500">
+                            <span class="text-sm text-slate-700">Услуга активна</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Стоимость и периодичность -->
+            <div class="border-b border-slate-200 pb-6">
+                <h2 class="text-lg font-semibold text-slate-800 mb-4">Стоимость и периодичность</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <!-- Цена -->
+                    <div>
+                        <label for="price" class="block text-sm font-medium text-slate-700 mb-1">
+                            Цена (руб.)
+                        </label>
+                        <div class="relative">
+                            <input type="number" id="price" name="price" step="0.01" min="0"
+                                   value="{% if service %}{{ service.price }}{% else %}0{% endif %}"
+                                   class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">₽</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Периодичность -->
+                    <div>
+                        <label for="frequency" class="block text-sm font-medium text-slate-700 mb-1">
+                            Периодичность (норматив)
+                        </label>
+                        <select id="frequency" name="frequency"
+                                class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                            <option value="">Не указана</option>
+                            {% for freq in frequencies %}
+                            <option value="{{ freq.id }}" {% if service and service.frequency_id == freq.id %}selected{% endif %}>
+                                {{ freq.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <!-- Макс. в месяц -->
+                    <div>
+                        <label for="max_quantity_per_month" class="block text-sm font-medium text-slate-700 mb-1">
+                            Макс. кол-во в месяц
+                        </label>
+                        <input type="number" id="max_quantity_per_month" name="max_quantity_per_month" min="1"
+                               value="{% if service and service.max_quantity_per_month %}{{ service.max_quantity_per_month }}{% endif %}"
+                               placeholder="Авто из периодичности"
+                               class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                        <p class="text-xs text-slate-400 mt-1">Оставьте пустым для авто</p>
+                    </div>
+                    
+                    <!-- Порядок -->
+                    <div>
+                        <label for="order" class="block text-sm font-medium text-slate-700 mb-1">
+                            Порядок сортировки
+                        </label>
+                        <input type="number" id="order" name="order" min="0"
+                               value="{% if service %}{{ service.order }}{% else %}0{% endif %}"
+                               class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Кнопки -->
+            <div class="flex gap-3">
+                <a href="{% url 'services:list' %}" 
+                   class="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg transition-colors text-center">
+                    Отмена
+                </a>
+                <button type="submit" 
+                        class="flex-1 px-4 py-2.5 bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium rounded-lg transition-colors">
+                    {% if service %}Сохранить изменения{% else %}Создать услугу{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

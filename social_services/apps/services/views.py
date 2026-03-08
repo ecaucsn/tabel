@@ -4,7 +4,7 @@ from datetime import date, timedelta
 from calendar import monthrange
 from decimal import Decimal
 
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse, HttpResponse
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST, require_GET
@@ -12,8 +12,9 @@ from django.db.models import Sum, Count
 from django.db import transaction
 from django.utils import timezone
 from django_htmx.http import trigger_client_event
+from django.contrib import messages
 
-from apps.services.models import Service, ServiceCategory, ServiceLog, ServiceSchedule, TabelLock, ServiceRecipient
+from apps.services.models import Service, ServiceCategory, ServiceLog, ServiceSchedule, TabelLock, ServiceRecipient, ServiceFrequency
 from apps.recipients.models import Recipient, ContractService, RecipientHistory, Contract
 from apps.core.models import Department
 
@@ -54,6 +55,208 @@ def services_list_view(request):
     }
     
     return render(request, 'services/services_list.html', context)
+
+
+@login_required
+def service_create_view(request):
+    """Создание новой услуги через форму на сайте"""
+    user = request.user
+    
+    # Только администраторы и HR могут создавать услуги
+    if not user.is_admin_or_hr:
+        messages.error(request, 'У вас нет прав для создания услуг')
+        return redirect('services:list')
+    
+    categories = ServiceCategory.objects.all().order_by('order')
+    frequencies = ServiceFrequency.objects.all().order_by('order')
+    parent_services = Service.objects.filter(parent__isnull=True, is_active=True).order_by('code')
+    
+    if request.method == 'POST':
+        try:
+            service = Service(
+                code=request.POST.get('code', '').strip(),
+                name=request.POST.get('name', '').strip(),
+                category_id=request.POST.get('category'),
+                price=request.POST.get('price') or 0,
+                is_active=request.POST.get('is_active') == 'on',
+                order=request.POST.get('order') or 0,
+            )
+            
+            # Родительская услуга (для подуслуг)
+            parent_id = request.POST.get('parent')
+            if parent_id:
+                service.parent_id = parent_id
+            
+            # Периодичность
+            frequency_id = request.POST.get('frequency')
+            if frequency_id:
+                service.frequency_id = frequency_id
+            
+            # Максимальное количество в месяц
+            max_qty = request.POST.get('max_quantity_per_month')
+            if max_qty:
+                service.max_quantity_per_month = max_qty
+            
+            service.save()
+            messages.success(request, f'Услуга "{service.code}. {service.name}" успешно создана')
+            return redirect('services:list')
+            
+        except Exception as e:
+            messages.error(request, f'Ошибка при создании услуги: {str(e)}')
+    
+    context = {
+        'categories': categories,
+        'frequencies': frequencies,
+        'parent_services': parent_services,
+        'user': user,
+    }
+    
+    return render(request, 'services/service_form.html', context)
+
+
+@login_required
+def service_edit_view(request, service_id):
+    """Редактирование услуги через форму на сайте"""
+    user = request.user
+    
+    # Только администраторы и HR могут редактировать услуги
+    if not user.is_admin_or_hr:
+        messages.error(request, 'У вас нет прав для редактирования услуг')
+        return redirect('services:list')
+    
+    service = get_object_or_404(Service, id=service_id)
+    categories = ServiceCategory.objects.all().order_by('order')
+    frequencies = ServiceFrequency.objects.all().order_by('order')
+    parent_services = Service.objects.filter(parent__isnull=True, is_active=True).exclude(id=service_id).order_by('code')
+    
+    if request.method == 'POST':
+        try:
+            service.code = request.POST.get('code', '').strip()
+            service.name = request.POST.get('name', '').strip()
+            service.category_id = request.POST.get('category')
+            service.price = request.POST.get('price') or 0
+            service.is_active = request.POST.get('is_active') == 'on'
+            service.order = request.POST.get('order') or 0
+            
+            # Родительская услуга
+            parent_id = request.POST.get('parent')
+            service.parent_id = parent_id if parent_id else None
+            
+            # Периодичность
+            frequency_id = request.POST.get('frequency')
+            service.frequency_id = frequency_id if frequency_id else None
+            
+            # Максимальное количество в месяц
+            max_qty = request.POST.get('max_quantity_per_month')
+            service.max_quantity_per_month = max_qty if max_qty else None
+            
+            service.save()
+            messages.success(request, f'Услуга "{service.code}. {service.name}" успешно обновлена')
+            return redirect('services:list')
+            
+        except Exception as e:
+            messages.error(request, f'Ошибка при обновлении услуги: {str(e)}')
+    
+    context = {
+        'service': service,
+        'categories': categories,
+        'frequencies': frequencies,
+        'parent_services': parent_services,
+        'user': user,
+    }
+    
+    return render(request, 'services/service_form.html', context)
+
+
+@login_required
+def service_bulk_edit_view(request):
+    """Групповое редактирование услуг"""
+    user = request.user
+    
+    # Только администраторы и HR могут редактировать услуги
+    if not user.is_admin_or_hr:
+        messages.error(request, 'У вас нет прав для редактирования услуг')
+        return redirect('services:list')
+    
+    categories = ServiceCategory.objects.all().order_by('order')
+    frequencies = ServiceFrequency.objects.all().order_by('order')
+    
+    # Фильтрация по категории
+    category_id = request.GET.get('category')
+    services_qs = Service.objects.all().select_related('category', 'frequency').order_by('category__order', 'code')
+    
+    if category_id:
+        services_qs = services_qs.filter(category_id=category_id)
+    
+    # Обработка POST-запроса - сохранение изменений
+    if request.method == 'POST':
+        try:
+            updated_count = 0
+            for key, value in request.POST.items():
+                if key.startswith('price_'):
+                    service_id = key.replace('price_', '')
+                    try:
+                        service = Service.objects.get(id=service_id)
+                        new_price = float(value) if value else 0
+                        if service.price != new_price:
+                            service.price = new_price
+                            service.save(update_fields=['price'])
+                            updated_count += 1
+                    except (Service.DoesNotExist, ValueError):
+                        pass
+                        
+                elif key.startswith('frequency_'):
+                    service_id = key.replace('frequency_', '')
+                    try:
+                        service = Service.objects.get(id=service_id)
+                        new_freq_id = value if value else None
+                        if str(service.frequency_id or '') != str(new_freq_id or ''):
+                            service.frequency_id = new_freq_id
+                            service.save(update_fields=['frequency', 'max_quantity_per_month'])
+                            updated_count += 1
+                    except Service.DoesNotExist:
+                        pass
+                        
+                elif key.startswith('is_active_'):
+                    service_id = key.replace('is_active_', '')
+                    try:
+                        service = Service.objects.get(id=service_id)
+                        new_status = value == 'on'
+                        if service.is_active != new_status:
+                            service.is_active = new_status
+                            service.save(update_fields=['is_active'])
+                            updated_count += 1
+                    except Service.DoesNotExist:
+                        pass
+            
+            messages.success(request, f'Обновлено услуг: {updated_count}')
+            return redirect('services:bulk_edit')
+            
+        except Exception as e:
+            messages.error(request, f'Ошибка при сохранении: {str(e)}')
+    
+    # Функция для сортировки кодов услуг
+    def sort_key(service):
+        code = service.code
+        parts = code.split('.')
+        result = []
+        for part in parts:
+            num = ''.join(filter(str.isdigit, part))
+            result.append(int(num) if num else 0)
+        return result
+    
+    services = list(services_qs)
+    services.sort(key=sort_key)
+    
+    context = {
+        'services': services,
+        'categories': categories,
+        'frequencies': frequencies,
+        'selected_category': category_id,
+        'user': user,
+    }
+    
+    return render(request, 'services/service_bulk_edit.html', context)
 
 
 @login_required

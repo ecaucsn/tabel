@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+
+{% block title %}Сотрудники-исполнители{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-800">Сотрудники-исполнители</h1>
+            <p class="text-sm text-slate-500 mt-1">Справочник сотрудников, оказывающих социальные услуги</p>
+        </div>
+        <a href="/admin/core/employee/add/" class="inline-flex items-center px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium rounded-lg transition-colors">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            Добавить сотрудника
+        </a>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
+        <form method="get" class="flex flex-col sm:flex-row gap-4">
+            <div class="flex-1">
+                <input type="text" 
+                       name="search" 
+                       value="{{ search }}" 
+                       placeholder="Поиск по ФИО или должности..."
+                       class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <select name="organization" class="min-w-0 max-w-xs px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 truncate">
+                    <option value="">Все организации</option>
+                    {% for org in organizations %}
+                    <option value="{{ org.pk }}" {% if organization_id == org.pk|stringformat:"s" %}selected{% endif %}>{{ org.name }}</option>
+                    {% endfor %}
+                </select>
+                <select name="is_active" class="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                    <option value="">Все статусы</option>
+                    <option value="true" {% if is_active == 'true' %}selected{% endif %}>Активные</option>
+                    <option value="false" {% if is_active == 'false' %}selected{% endif %}>Неактивные</option>
+                </select>
+                <button type="submit" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors">
+                    Найти
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Employees List -->
+    {% if employees %}
+    <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+        <table class="min-w-full divide-y divide-slate-200">
+            <thead class="bg-slate-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Сотрудник</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Должность</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Организация</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Телефон</th>
+                    <th class="px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">Статус</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Действия</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-slate-200">
+                {% for employee in employees %}
+                <tr class="hover:bg-slate-50 transition-colors">
+                    <td class="px-6 py-4">
+                        <div class="flex items-center">
+                            <div class="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center mr-3">
+                                <span class="text-sm font-medium text-primary-700">{{ employee.last_name|slice:":1" }}{{ employee.first_name|slice:":1"|default:"" }}</span>
+                            </div>
+                            <div>
+                                <div class="text-sm font-medium text-slate-900">{{ employee.get_full_name }}</div>
+                                {% if employee.email %}
+                                <div class="text-xs text-slate-500">{{ employee.email }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 text-sm text-slate-500">
+                        {{ employee.position|default:"—" }}
+                    </td>
+                    <td class="px-6 py-4 text-sm text-slate-500">
+                        {% if employee.organization %}
+                        <a href="{% url 'organization_detail' employee.organization.pk %}" class="text-primary-600 hover:text-primary-700">
+                            {{ employee.organization.short_name|default:employee.organization.name }}
+                        </a>
+                        {% else %}
+                        <span class="text-slate-400">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 text-sm text-slate-500">
+                        {{ employee.phone|default:"—" }}
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                        {% if employee.is_active %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            Активен
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            Неактивен
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 text-right text-sm">
+                        <a href="{% url 'employee_detail' employee.pk %}" class="text-primary-600 hover:text-primary-700 mr-3">
+                            Просмотр
+                        </a>
+                        <a href="/admin/core/employee/{{ employee.pk }}/change/" class="text-slate-600 hover:text-slate-700">
+                            Редактировать
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-12 text-center">
+        <svg class="w-12 h-12 text-slate-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+        </svg>
+        <p class="text-slate-500">Сотрудники не найдены</p>
+        {% if search or organization_id or is_active %}
+        <a href="{% url 'employees' %}" class="text-primary-600 hover:text-primary-700 text-sm mt-2 inline-block">
+            Сбросить фильтры
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

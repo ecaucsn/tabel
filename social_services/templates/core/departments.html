@@ -79,18 +79,18 @@
                          style="width: {% if item.occupancy > 100 %}100{% else %}{{ item.occupancy }}{% endif %}%"></div>
                 </div>
                 
-                <!-- Upcoming Services -->
-                {% if item.upcoming_services %}
+                <!-- Upcoming Birthdays -->
+                {% if item.upcoming_birthdays %}
                 <div class="mb-4">
-                    <h3 class="text-sm font-medium text-slate-700 mb-2">Ближайшие мероприятия</h3>
+                    <h3 class="text-sm font-medium text-slate-700 mb-2">Ближайшие именинники</h3>
                     <div class="space-y-2">
-                        {% for service in item.upcoming_services %}
-                        <div class="flex items-center justify-between text-sm {% if service.is_today %}bg-primary-50 -mx-2 px-2 py-1 rounded{% endif %}">
+                        {% for birthday in item.upcoming_birthdays %}
+                        <div class="flex items-center justify-between text-sm {% if birthday.days_until == 0 %}bg-amber-50 -mx-2 px-2 py-1 rounded{% endif %}">
                             <div class="flex items-center gap-2">
-                                <span class="text-slate-400 text-xs">{{ service.date|date:"d.m" }}</span>
-                                <span class="text-slate-600 truncate max-w-[150px]" title="{{ service.service.name }}">{{ service.service.name }}</span>
+                                <span class="text-slate-400 text-xs">{{ birthday.birth_date|date:"d.m" }}</span>
+                                <span class="text-slate-600 truncate max-w-[150px]" title="{{ birthday.recipient.full_name }}">{{ birthday.recipient.full_name }}</span>
                             </div>
-                            <span class="text-slate-500 text-xs">{{ service.quantity }}x</span>
+                            <span class="text-slate-500 text-xs">{{ birthday.age }}</span>
                         </div>
                         {% endfor %}
                     </div>

@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
-from django.db.models import Count, Sum, DecimalField
+from django.db.models import Count, Sum, DecimalField, Q
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.views.decorators.http import require_GET
@@ -10,6 +10,17 @@ from calendar import month_name
 from decimal import Decimal
 
 from apps.recipients.models import Recipient, RecipientHistory
+
+
+def declension_years(age):
+    """Склонение слова 'год' в зависимости от возраста"""
+    if age % 100 in range(11, 20):
+        return f"{age} лет"
+    if age % 10 == 1:
+        return f"{age} год"
+    if age % 10 in range(2, 5):
+        return f"{age} года"
+    return f"{age} лет"
 from apps.services.models import ServiceLog, Service, ServiceSchedule
 from apps.core.models import Department
 from apps.modules.models import MonthlyRequest, PensionAccount, PensionAccrual, PensionExpense, DigitalProfile
@@ -254,35 +265,47 @@ def departments_view(request):
         if capacity > 0:
             occupancy = round((recipient_count / capacity) * 100, 1)
         
-        # Ближайшие мероприятия (услуги по расписанию на ближайшие 7 дней)
-        today_weekday = today.weekday()  # 0 = понедельник
-        upcoming_services = []
+        # Ближайшие именинники (дни рождения в ближайшие 30 дней)
+        upcoming_birthdays = []
         
-        # Получаем расписание услуг для отделения на ближайшие 7 дней
-        for days_ahead in range(7):
-            check_date = today + timedelta(days=days_ahead)
-            check_weekday = check_date.weekday()
-            
-            # Получаем услуги на этот день недели
-            schedules = ServiceSchedule.objects.filter(
-                department=dept,
-                day_of_week=check_weekday
-            ).select_related('service')
-            
-            for schedule in schedules:
-                upcoming_services.append({
-                    'date': check_date,
-                    'service': schedule.service,
-                    'quantity': schedule.quantity,
-                    'is_today': days_ahead == 0
-                })
+        # Получаем всех проживающих отделения
+        recipients = Recipient.objects.filter(department=dept, placement='internat')
+        
+        for recipient in recipients:
+            if recipient.birth_date:
+                try:
+                    # День рождения в этом году
+                    birthday_this_year = date(today.year, recipient.birth_date.month, recipient.birth_date.day)
+                    
+                    # Если день рождения уже прошёл в этом году, проверяем следующий год
+                    if birthday_this_year < today:
+                        birthday_this_year = date(today.year + 1, recipient.birth_date.month, recipient.birth_date.day)
+                    
+                    # Считаем дней до дня рождения
+                    days_until = (birthday_this_year - today).days
+                    
+                    # Если день рождения в ближайшие 30 дней
+                    if 0 <= days_until <= 30:
+                        age = today.year - recipient.birth_date.year
+                        upcoming_birthdays.append({
+                            'recipient': recipient,
+                            'birth_date': birthday_this_year,
+                            'days_until': days_until,
+                            'age': declension_years(age)
+                        })
+                except ValueError:
+                    # Некорректная дата (например, 30 февраля) - пропускаем
+                    continue
+        
+        # Сортируем по количеству дней до дня рождения
+        upcoming_birthdays.sort(key=lambda x: x['days_until'])
         
         departments_data.append({
             'department': dept,
             'recipient_count': recipient_count,
             'capacity': capacity,
             'occupancy': occupancy,
-            'upcoming_services': upcoming_services[:5],  # Показываем только первые 5
+            'upcoming_birthdays': upcoming_birthdays[:3],  # Показываем только первых 3
         })
     
     # Общая заполненность учреждения
@@ -398,3 +421,104 @@ def department_residents_print_only(request, department_id):
     }
     
     return render(request, 'core/department_residents_print_only.html', context)
+
+
+# =====================
+# Исполнители (Организации и Сотрудники)
+# =====================
+
+from apps.core.models import Organization, Employee
+
+
+@login_required
+def organization_list(request):
+    """Список организаций-исполнителей"""
+    organizations = Organization.objects.all()
+    
+    # Фильтрация
+    search = request.GET.get('search', '')
+    if search:
+        organizations = organizations.filter(
+            Q(name__icontains=search) |
+            Q(short_name__icontains=search) |
+            Q(inn__icontains=search)
+        )
+    
+    is_active = request.GET.get('is_active', '')
+    if is_active:
+        organizations = organizations.filter(is_active=is_active == 'true')
+    
+    # Подсчёт сотрудников для каждой организации
+    organizations = organizations.annotate(
+        employee_count=Count('employees')
+    )
+    
+    context = {
+        'organizations': organizations,
+        'search': search,
+        'is_active': is_active,
+    }
+    
+    return render(request, 'core/organization_list.html', context)
+
+
+@login_required
+def organization_detail(request, pk):
+    """Детальная информация об организации"""
+    organization = get_object_or_404(Organization, pk=pk)
+    employees = organization.employees.all()
+    
+    context = {
+        'organization': organization,
+        'employees': employees,
+    }
+    
+    return render(request, 'core/organization_detail.html', context)
+
+
+@login_required
+def employee_list(request):
+    """Список сотрудников-исполнителей"""
+    employees = Employee.objects.select_related('organization', 'user').all()
+    
+    # Фильтрация
+    search = request.GET.get('search', '')
+    if search:
+        employees = employees.filter(
+            Q(last_name__icontains=search) |
+            Q(first_name__icontains=search) |
+            Q(patronymic__icontains=search) |
+            Q(position__icontains=search)
+        )
+    
+    organization_id = request.GET.get('organization', '')
+    if organization_id:
+        employees = employees.filter(organization_id=organization_id)
+    
+    is_active = request.GET.get('is_active', '')
+    if is_active:
+        employees = employees.filter(is_active=is_active == 'true')
+    
+    organizations = Organization.objects.filter(is_active=True)
+    
+    context = {
+        'employees': employees,
+        'organizations': organizations,
+        'search': search,
+        'organization_id': organization_id,
+        'is_active': is_active,
+    }
+    
+    return render(request, 'core/employee_list.html', context)
+
+
+@login_required
+def employee_detail(request, pk):
+    """Детальная информация о сотруднике"""
+    employee = get_object_or_404(Employee, pk=pk)
+    
+    context = {
+        'employee': employee,
+    }
+    
+    return render(request, 'core/employee_detail.html', context)

@@ -110,3 +110,167 @@ class User(AbstractUser):
     def can_edit_services(self):
         """Может редактировать справочник услуг"""
         return self.is_admin_or_hr
+
+
+class Organization(models.Model):
+    """Организация-исполнитель услуг"""
+    
+    name = models.CharField('Название', max_length=200)
+    short_name = models.CharField('Краткое название', max_length=100, blank=True)
+    inn = models.CharField('ИНН', max_length=12, blank=True)
+    kpp = models.CharField('КПП', max_length=9, blank=True)
+    ogrn = models.CharField('ОГРН', max_length=15, blank=True)
+    address = models.TextField('Адрес', blank=True)
+    phone = models.CharField('Телефон', max_length=20, blank=True)
+    email = models.EmailField('Email', blank=True)
+    director = models.ForeignKey(
+        'Employee',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name='Руководитель',
+        related_name='managed_organizations'
+    )
+    is_active = models.BooleanField('Активна', default=True)
+    created_at = models.DateTimeField('Создано', auto_now_add=True)
+    updated_at = models.DateTimeField('Обновлено', auto_now=True)
+    
+    class Meta:
+        verbose_name = 'Организация'
+        verbose_name_plural = 'Организации'
+        ordering = ['name']
+    
+    def __str__(self):
+        return self.short_name or self.name
+
+
+class Employee(models.Model):
+    """Сотрудник-исполнитель услуг"""
+    
+    GENDER_CHOICES = [
+        ('male', 'Мужской'),
+        ('female', 'Женский'),
+    ]
+    
+    last_name = models.CharField('Фамилия', max_length=100)
+    first_name = models.CharField('Имя', max_length=100)
+    patronymic = models.CharField('Отчество', max_length=100, blank=True)
+    gender = models.CharField('Пол', max_length=10, choices=GENDER_CHOICES, blank=True)
+    birth_date = models.DateField('Дата рождения', null=True, blank=True)
+    phone = models.CharField('Телефон', max_length=20, blank=True)
+    email = models.EmailField('Email', blank=True)
+    position = models.CharField('Должность', max_length=150, blank=True)
+    
+    # Адрес
+    address = models.TextField('Адрес регистрации', blank=True)
+    
+    # Паспортные данные
+    passport_series = models.CharField('Серия паспорта', max_length=4, blank=True)
+    passport_number = models.CharField('Номер паспорта', max_length=6, blank=True)
+    passport_issued_by = models.CharField('Кем выдан паспорт', max_length=255, blank=True)
+    passport_issue_date = models.DateField('Дата выдачи паспорта', null=True, blank=True)
+    passport_department_code = models.CharField('Код подразделения', max_length=7, blank=True)
+    
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name='Организация',
+        related_name='employees'
+    )
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name='Пользователь системы',
+        related_name='employee_profile'
+    )
+    is_active = models.BooleanField('Активен', default=True)
+    created_at = models.DateTimeField('Создано', auto_now_add=True)
+    updated_at = models.DateTimeField('Обновлено', auto_now=True)
+    
+    class Meta:
+        verbose_name = 'Сотрудник'
+        verbose_name_plural = 'Сотрудники'
+        ordering = ['last_name', 'first_name']
+    
+    def __str__(self):
+        return self.get_full_name()
+    
+    def get_full_name(self):
+        """Возвращает ФИО полностью"""
+        parts = [self.last_name, self.first_name, self.patronymic]
+        return ' '.join(filter(None, parts))
+    
+    @property
+    def short_name(self):
+        """Возвращает Фамилию И.О."""
+        if self.first_name:
+            initials = self.first_name[0] + '.'
+            if self.patronymic:
+                initials += self.patronymic[0] + '.'
+            return f"{self.last_name} {initials}"
+        return self.last_name
+
+
+class SystemSettings(models.Model):
+    """Глобальные настройки системы (singleton)"""
+    
+    executor_organization = models.ForeignKey(
+        Organization,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='executor_settings',
+        verbose_name='Организация-исполнитель'
+    )
+    executor_signatory = models.ForeignKey(
+        Employee,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='executor_signatory_settings',
+        verbose_name='Подписант от исполнителя',
+        help_text='Сотрудник, подписывающий акты от имени исполнителя'
+    )
+    customer_organization = models.ForeignKey(
+        Organization,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='customer_settings',
+        verbose_name='Организация-заказчик'
+    )
+    customer_signatory = models.ForeignKey(
+        Employee,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='customer_signatory_settings',
+        verbose_name='Подписант от заказчика',
+        help_text='Сотрудник, подписывающий акты от имени заказчика'
+    )
+    
+    class Meta:
+        verbose_name = 'Настройки системы'
+        verbose_name_plural = 'Настройки системы'
+    
+    def __str__(self):
+        return 'Настройки системы'
+    
+    @classmethod
+    def get_settings(cls):
+        """Возвращает единственный экземпляр настроек"""
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+    
+    def save(self, *args, **kwargs):
+        # Всегда сохраняем с pk=1 (singleton)
+        self.pk = 1
+        super().save(*args, **kwargs)
+    
+    def delete(self, *args, **kwargs):
+        # Запрещаем удаление настроек
+        pass

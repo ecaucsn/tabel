@@ -181,6 +181,20 @@ def recipient_detail(request, pk):
         else:
             recipient.discharge_date = None
         
+        # Паспортные данные (только для HR)
+        if user.role == 'hr' or user.is_superuser:
+            recipient.passport_series = request.POST.get('passport_series', '')
+            recipient.passport_number = request.POST.get('passport_number', '')
+            recipient.passport_issued_by = request.POST.get('passport_issued_by', '')
+            recipient.passport_department_code = request.POST.get('passport_department_code', '')
+            recipient.phone = request.POST.get('phone', '')
+            
+            passport_issue_date = request.POST.get('passport_issue_date')
+            if passport_issue_date:
+                recipient.passport_issue_date = passport_issue_date
+            else:
+                recipient.passport_issue_date = None
+        
         # Обработка фото
         if request.FILES.get('photo'):
             recipient.photo = request.FILES['photo']
@@ -720,6 +734,77 @@ def residents_list_page(request):
 
 
 @login_required
+def residents_list_data(request):
+    """API: Данные списка проживающих для отображения на странице"""
+    user = request.user
+    today = date.today()
+    
+    # Получаем выбранные отделения
+    department_ids = request.GET.getlist('departments')
+    
+    # Получаем режим отображения
+    view_mode = request.GET.get('mode', 'grouped')
+    
+    if department_ids and 'all' not in department_ids:
+        departments = Department.objects.filter(
+            id__in=department_ids
+        )
+    else:
+        # Все отделения
+        departments = Department.objects.all()
+    
+    # Собираем данные по отделениям
+    departments_data = []
+    total_recipients = 0
+    
+    for dept in departments:
+        recipients = Recipient.objects.filter(
+            department=dept
+        ).select_related('department').order_by('room', 'last_name', 'first_name')
+        
+        # Группируем по комнатам
+        rooms_data = {}
+        for recipient in recipients:
+            room = recipient.room or 'Без комнаты'
+            if room not in rooms_data:
+                rooms_data[room] = []
+            rooms_data[room].append(recipient)
+        
+        # Сортируем комнаты
+        def room_sort_key(room):
+            if room == 'Без комнаты':
+                return (1, 0)
+            try:
+                return (0, int(room))
+            except (ValueError, TypeError):
+                return (0, 0)
+        
+        sorted_rooms = sorted(rooms_data.items(), key=lambda x: room_sort_key(x[0]))
+        
+        # Общий список
+        all_recipients = list(recipients.order_by('last_name', 'first_name', 'patronymic'))
+        
+        departments_data.append({
+            'department': dept,
+            'rooms_data': sorted_rooms,
+            'all_recipients': all_recipients,
+            'recipient_count': recipients.count(),
+        })
+        
+        total_recipients += recipients.count()
+    
+    context = {
+        'departments_data': departments_data,
+        'total_recipients': total_recipients,
+        'today': today,
+        'is_all': 'all' in department_ids or not department_ids,
+        'view_mode': view_mode,
+    }
+    
+    return render(request, 'recipients/residents_list_content.html', context)
+
+
+@login_required
 def residents_list_print(request):
     """Печать списка проживающих по отделениям"""
     user = request.user
@@ -833,12 +918,22 @@ def consent_opd_page(request):
 @login_required
 def consent_opd_print(request, pk):
     """Печать согласия на обработку персональных данных"""
+    from apps.core.models import SystemSettings
+    
     recipient = get_object_or_404(Recipient, pk=pk)
     today = date.today()
+    settings = SystemSettings.get_settings()
+    
+    # Директор организации (для блока "Я, ..." и подписи)
+    director = None
+    if settings.executor_organization:
+        director = settings.executor_organization.director
     
     context = {
         'recipient': recipient,
         'today': today,
+        'organization': settings.executor_organization,
+        'director': director,
     }
     
     return render(request, 'recipients/consent_opd_print.html', context)

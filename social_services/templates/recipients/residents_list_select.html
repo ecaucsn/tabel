@@ -102,8 +102,8 @@ function loadResidentsList() {
     document.getElementById('loadingIndicator').classList.remove('hidden');
     document.getElementById('printBtn').disabled = true;
     
-    // Формируем URL
-    let url = '{% url "recipients:residents_list_print" %}?';
+    // Формируем URL для загрузки данных (не для печати)
+    let url = '{% url "recipients:residents_list_data" %}?';
     if (dept) {
         url += `departments=${dept}&`;
     } else {
@@ -117,21 +117,9 @@ function loadResidentsList() {
         .then(html => {
             document.getElementById('loadingIndicator').classList.add('hidden');
             
-            // Извлекаем только содержимое блока print-page
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-            const printPage = doc.querySelector('.print-page');
-            
-            if (printPage) {
-                // Скрываем кнопки no-print
-                printPage.querySelectorAll('.no-print').forEach(el => el.remove());
-                
-                document.getElementById('residentsContent').innerHTML = printPage.outerHTML;
-                document.getElementById('residentsContent').classList.remove('hidden');
-                document.getElementById('printBtn').disabled = false;
-            } else {
-                document.getElementById('emptyState').classList.remove('hidden');
-            }
+            document.getElementById('residentsContent').innerHTML = html;
+            document.getElementById('residentsContent').classList.remove('hidden');
+            document.getElementById('printBtn').disabled = false;
         })
         .catch(error => {
             console.error('Ошибка загрузки:', error);
@@ -144,6 +132,7 @@ function openPrintWindow() {
     const dept = document.getElementById('departmentSelect').value;
     const groupMode = document.getElementById('groupMode').value;
     
+    // Формируем URL для печати
     let url = '{% url "recipients:residents_list_print" %}?';
     if (dept) {
         url += `departments=${dept}&`;
@@ -152,7 +141,8 @@ function openPrintWindow() {
     }
     url += `mode=${groupMode}`;
     
-    window.open(url, '_blank', 'width=800,height=600');
+    // Открываем в новой вкладке
+    window.open(url, '_blank');
 }
 </script>
 {% endblock %}

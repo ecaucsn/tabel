@@ -1,0 +1,188 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ employee.get_full_name }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Breadcrumb -->
+    <nav class="flex items-center space-x-2 text-sm text-slate-500">
+        <a href="{% url 'employees' %}" class="hover:text-slate-700">Сотрудники</a>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+        <span class="text-slate-900">{{ employee.get_full_name }}</span>
+    </nav>
+
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div class="flex items-center">
+            <div class="w-14 h-14 bg-primary-100 rounded-xl flex items-center justify-center mr-4">
+                <span class="text-xl font-bold text-primary-700">{{ employee.last_name|slice:":1" }}{{ employee.first_name|slice:":1"|default:"" }}</span>
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold text-slate-800">{{ employee.get_full_name }}</h1>
+                {% if employee.position %}
+                <p class="text-sm text-slate-500">{{ employee.position }}</p>
+                {% endif %}
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <a href="/admin/core/employee/{{ employee.pk }}/change/" class="inline-flex items-center px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg transition-colors">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                </svg>
+                Редактировать
+            </a>
+        </div>
+    </div>
+
+    <!-- Employee Info -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Main Info -->
+        <div class="lg:col-span-2 space-y-6">
+            <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+                <h2 class="text-lg font-semibold text-slate-800 mb-4">Основная информация</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Фамилия</label>
+                        <p class="text-sm text-slate-900">{{ employee.last_name }}</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Имя</label>
+                        <p class="text-sm text-slate-900">{{ employee.first_name }}</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Отчество</label>
+                        <p class="text-sm text-slate-900">{{ employee.patronymic|default:"—" }}</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Пол</label>
+                        <p class="text-sm text-slate-900">{{ employee.get_gender_display|default:"—" }}</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Дата рождения</label>
+                        <p class="text-sm text-slate-900">{{ employee.birth_date|date:"d.m.Y"|default:"—" }}</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Должность</label>
+                        <p class="text-sm text-slate-900">{{ employee.position|default:"—" }}</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Телефон</label>
+                        <p class="text-sm text-slate-900">{{ employee.phone|default:"—" }}</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Email</label>
+                        <p class="text-sm text-slate-900">{{ employee.email|default:"—" }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Address Info -->
+            <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+                <h2 class="text-lg font-semibold text-slate-800 mb-4">Адрес регистрации</h2>
+                <div>
+                    <p class="text-sm text-slate-900">{{ employee.address|default:"Не указан" }}</p>
+                </div>
+            </div>
+
+            <!-- Passport Info -->
+            <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+                <h2 class="text-lg font-semibold text-slate-800 mb-4">Паспортные данные</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Серия</label>
+                        <p class="text-sm text-slate-900">{{ employee.passport_series|default:"—" }}</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Номер</label>
+                        <p class="text-sm text-slate-900">{{ employee.passport_number|default:"—" }}</p>
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Кем выдан</label>
+                        <p class="text-sm text-slate-900">{{ employee.passport_issued_by|default:"—" }}</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Дата выдачи</label>
+                        <p class="text-sm text-slate-900">{{ employee.passport_issue_date|date:"d.m.Y"|default:"—" }}</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Код подразделения</label>
+                        <p class="text-sm text-slate-900">{{ employee.passport_department_code|default:"—" }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Organization Info -->
+            {% if employee.organization %}
+            <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+                <h2 class="text-lg font-semibold text-slate-800 mb-4">Организация</h2>
+                <div class="flex items-center">
+                    <div class="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center mr-4">
+                        <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <a href="{% url 'organization_detail' employee.organization.pk %}" class="text-lg font-medium text-primary-600 hover:text-primary-700">
+                            {{ employee.organization.name }}
+                        </a>
+                        {% if employee.organization.phone %}
+                        <p class="text-sm text-slate-500">{{ employee.organization.phone }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Status & System Info -->
+        <div class="space-y-6">
+            <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+                <h2 class="text-lg font-semibold text-slate-800 mb-4">Статус</h2>
+                <div class="flex items-center">
+                    {% if employee.is_active %}
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                        Активен
+                    </span>
+                    {% else %}
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                        Неактивен
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if employee.user %}
+            <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+                <h2 class="text-lg font-semibold text-slate-800 mb-4">Учётная запись</h2>
+                <div class="space-y-2">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Пользователь</label>
+                        <p class="text-sm text-slate-900">{{ employee.user.username }}</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Роль</label>
+                        <p class="text-sm text-slate-900">{{ employee.user.get_role_display }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+                <h2 class="text-lg font-semibold text-slate-800 mb-4">Системная информация</h2>
+                <div class="text-xs text-slate-500 space-y-1">
+                    <p>Создано: {{ employee.created_at|date:"d.m.Y H:i" }}</p>
+                    <p>Обновлено: {{ employee.updated_at|date:"d.m.Y H:i" }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

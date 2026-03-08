@@ -628,6 +628,17 @@
         document.querySelectorAll('.day-header').forEach(header => {
             header.addEventListener('click', handleDayHeaderClick);
         });
+        
+        // Auto-expand first category if recipient is selected
+        {% if selected_recipient and categories_with_services %}
+        const firstCategoryRow = document.querySelector('.category-row');
+        if (firstCategoryRow) {
+            const firstCategoryId = firstCategoryRow.dataset.categoryId;
+            if (firstCategoryId) {
+                toggleCategory(parseInt(firstCategoryId));
+            }
+        }
+        {% endif %}
     });
     
     // Toggle category accordion

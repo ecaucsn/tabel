@@ -12,7 +12,7 @@ from django.utils import timezone
 
 from apps.recipients.models import Recipient, ContractService, MonthlyRecipientData
 from apps.services.models import ServiceLog, Service, ServiceCategory
-from apps.core.models import Department
+from apps.core.models import Department, SystemSettings
 
 logger = logging.getLogger(__name__)
 
@@ -419,6 +419,9 @@ def print_act(request, recipient_id, year, month):
         9: 'Сентябрь', 10: 'Октябрь', 11: 'Ноябрь', 12: 'Декабрь'
     }
     
+    # Получаем настройки системы
+    settings = SystemSettings.get_settings()
+    
     context = {
         'recipient': recipient,
         'year': year,
@@ -431,6 +434,11 @@ def print_act(request, recipient_id, year, month):
         'limit_75': limit_75,
         'pension_payment': pension_value,
         'difference': difference,
+        # Данные из настроек
+        'executor_organization': settings.executor_organization,
+        'executor_signatory': settings.executor_signatory,
+        'customer_organization': settings.customer_organization,
+        'customer_signatory': settings.customer_signatory,
     }
     
     return render(request, 'reports/act_print.html', context)

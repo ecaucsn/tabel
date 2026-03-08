@@ -40,7 +40,8 @@ class RecipientAdmin(admin.ModelAdmin):
     date_hierarchy = 'admission_date'
     inlines = [RecipientHistoryInline]
     
-    fieldsets = (
+    # Базовые fieldsets (без паспортных данных)
+    base_fieldsets = (
         ('Персональные данные', {
             'fields': ('photo', 'photo_preview_admin', 'last_name', 'first_name', 'patronymic', 'birth_date')
         }),
@@ -49,7 +50,28 @@ class RecipientAdmin(admin.ModelAdmin):
         }),
     )
     
+    # Fieldsets с паспортными данными (только для HR)
+    hr_fieldsets = (
+        ('Персональные данные', {
+            'fields': ('photo', 'photo_preview_admin', 'last_name', 'first_name', 'patronymic', 'birth_date')
+        }),
+        ('Паспортные данные (только для HR)', {
+            'fields': ('passport_series', 'passport_number', 'passport_issued_by',
+                      'passport_issue_date', 'passport_department_code', 'phone'),
+            'classes': ('collapse',),
+        }),
+        ('Размещение', {
+            'fields': ('department', 'room', 'admission_date', 'discharge_date')
+        }),
+    )
+    
     readonly_fields = ['photo_preview_admin']
+    
+    def get_fieldsets(self, request, obj=None):
+        """Показываем паспортные данные только для роли hr"""
+        if request.user.role == 'hr' or request.user.is_superuser:
+            return self.hr_fieldsets
+        return self.base_fieldsets
     
     def photo_preview(self, obj):
         """Превью фото в списке"""

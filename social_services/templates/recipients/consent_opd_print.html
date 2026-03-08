@@ -8,59 +8,68 @@
     <style>
         @page {
             size: A4;
-            margin: 1.5cm 2cm;
+            margin: 1.5cm 1.5cm 1.5cm 2cm;
+        }
+        
+        * {
+            box-sizing: border-box;
         }
         
         body {
             font-family: "Times New Roman", Times, serif;
-            font-size: 12pt;
-            line-height: 1.3;
+            font-size: 11pt;
+            line-height: 1.25;
             color: #000;
             margin: 0;
             padding: 0;
         }
         
         .document {
-            max-width: 100%;
+            max-width: 17cm;
             margin: 0 auto;
         }
         
         .title {
             text-align: center;
             font-weight: bold;
-            font-size: 12pt;
-            margin-bottom: 0.8em;
+            font-size: 11pt;
+            margin-bottom: 0.5em;
             line-height: 1.3;
         }
         
         .section {
-            margin-bottom: 0.4em;
+            margin-bottom: 0.3em;
             text-align: justify;
         }
         
         .field {
             border-bottom: 1px solid #000;
             display: inline-block;
-            min-width: 150px;
             text-align: center;
+            padding: 0 2px;
+            white-space: nowrap;
+            overflow: hidden;
         }
         
         .field-long {
             border-bottom: 1px solid #000;
             display: block;
-            margin: 0.2em 0;
-            min-height: 1.2em;
+            margin: 0.1em 0;
+            min-height: 1em;
+            text-align: center;
         }
         
         .comment {
-            font-size: 10pt;
+            font-size: 9pt;
             color: #666;
             text-align: center;
-            margin-top: 0.1em;
+            margin-top: 0;
+            line-height: 1.2;
         }
         
         .indent {
-            text-indent: 1.5em;
+            text-indent: 1.25em;
+            margin: 0.15em 0;
         }
         
         .bold {
@@ -68,7 +77,7 @@
         }
         
         .signature-block {
-            margin-top: 1.5em;
+            margin-top: 1em;
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
@@ -85,30 +94,29 @@
         .signature-line {
             border-bottom: 1px solid #000;
             display: inline-block;
-            width: 120px;
-            margin: 0 0.3em;
+            width: 100px;
+            margin: 0 0.2em;
         }
         
         .organization-name {
             font-weight: bold;
         }
         
-        ul {
-            margin: 0.3em 0;
-            padding-left: 2em;
-        }
-        
-        li {
-            margin-bottom: 0.1em;
-        }
-        
         .small-text {
-            font-size: 11pt;
+            font-size: 10pt;
+        }
+        
+        .passport-row {
+            margin: 0.15em 0;
+        }
+        
+        .info-block {
+            margin: 0.4em 0;
         }
         
         @media print {
             body {
-                font-size: 11pt;
+                font-size: 10pt;
             }
             
             .no-print {
@@ -125,46 +133,64 @@
             недееспособного, находящегося под опекой
         </div>
         
-        <div class="section">
-            Я, <span class="field" style="min-width: 350px;">{{ recipient.full_name }}</span>
-            <div class="comment">(фамилия, имя, отчество полностью)</div>
+        <div class="section" style="display: flex; flex-wrap: wrap;">
+            <span>Я, </span><span class="field-long" style="flex: 1; text-align: center; border-bottom: 1px solid #333;">{% if director %}{{ director.get_full_name }}{% else %}[Директор не указан]{% endif %}</span>
+            <div class="comment" style="width: 100%; padding-left: 35px;">(фамилия, имя, отчество полностью)</div>
+        </div>
+        
+        <div class="section passport-row">
+            паспорт серия <span class="field" style="min-width: 50px;">{% if director and director.passport_series %}{{ director.passport_series }}{% endif %}</span>
+            № <span class="field" style="min-width: 70px;">{% if director and director.passport_number %}{{ director.passport_number }}{% endif %}</span>
+            выдан «<span class="field" style="min-width: 25px;">{% if director and director.passport_issue_date %}{{ director.passport_issue_date|date:"d" }}{% endif %}</span>»
+            <span class="field" style="min-width: 90px;">{% if director and director.passport_issue_date %}{{ director.passport_issue_date|date:"F" }}{% endif %}</span>
+            <span class="field" style="min-width: 40px;">{% if director and director.passport_issue_date %}{{ director.passport_issue_date|date:"Y" }}{% endif %}</span> г.
         </div>
         
         <div class="section">
-            паспорт серия _______ № __________ выдан «___» _________________ г.
-            <div class="field-long"></div>
+            <div class="field-long">{% if director and director.passport_issued_by %}{{ director.passport_issued_by }}{% endif %}</div>
             <div class="comment">(кем выдан)</div>
         </div>
         
         <div class="section">
-            проживающий по адресу: <span class="field-long" style="display: inline-block; width: auto;"></span>
+            проживающий по адресу: <span class="field-long" style="display: inline-block; width: auto;">{% if director and director.address %}{{ director.address }}{% endif %}</span>
         </div>
         
         <div class="section">
-            номер телефона: ________________, даю 
-            <span class="organization-name">государственному казенному учреждению Пензенской области «Сосновский дом социального обслуживания»</span> 
-            (ОГРН: 1025800680180, ИНН: 5809012030), юридический адрес: 442722, Пензенская область, Бессоновский район, с. Сосновка, ул. Заречная д. 8, 
+            номер телефона: <span class="field" style="min-width: 100px;">{% if director and director.phone %}{{ director.phone }}{% endif %}</span>, даю
+            {% if organization %}
+            <span class="organization-name">{{ organization.name }}</span>
+            {% if organization.ogrn %}(ОГРН: {{ organization.ogrn }}{% endif %}{% if organization.inn %}, ИНН: {{ organization.inn }}{% endif %}), {% if organization.address %}юридический адрес: {{ organization.address }}, {% endif %}
+            {% else %}
+            <span class="organization-name">[Организация не указана]</span>
+            {% endif %}
             согласие на обработку своих персональных данных.
         </div>
         
-        <div class="section" style="margin-top: 0.8em;">
+        <div class="info-block">
             <div class="bold">В лице представителя субъекта персональных данных</div>
             <div class="comment">(заполняется в случае получения согласия от представителя субъекта персональных данных)</div>
         </div>
         
         <div class="section">
-            <div class="field-long"></div>
+            <div class="field-long">{{ recipient.full_name }}</div>
             <div class="comment">(фамилия, имя, отчество полностью)</div>
         </div>
         
-        <div class="section">
-            паспорт серия ____ № ______ выдан «__» ________________________________________
-            <div class="field-long"></div>
-            <div class="comment">(кем выдан)</div>
+        <div class="section passport-row">
+            паспорт серия <span class="field" style="min-width: 50px;">{% if recipient.passport_series %}{{ recipient.passport_series }}{% endif %}</span>
+            № <span class="field" style="min-width: 70px;">{% if recipient.passport_number %}{{ recipient.passport_number }}{% endif %}</span>
+            выдан «<span class="field" style="min-width: 25px;">{% if recipient.passport_issue_date %}{{ recipient.passport_issue_date|date:"d" }}{% endif %}</span>»
+            <span class="field" style="min-width: 90px;">{% if recipient.passport_issue_date %}{{ recipient.passport_issue_date|date:"F" }}{% endif %}</span>
+            <span class="field" style="min-width: 40px;">{% if recipient.passport_issue_date %}{{ recipient.passport_issue_date|date:"Y" }}{% endif %}</span> г.
         </div>
         
         <div class="section">
-            проживающий по адресу: <span class="field-long" style="display: inline-block; width: auto;"></span>
+            <div class="field-long">{% if recipient.passport_issued_by %}{{ recipient.passport_issued_by }}{% endif %}</div>
+            <div class="comment">(кем выдан)</div>
+        </div>
+        
+        <div class="section" style="text-align: left;">
+            проживающий по адресу: <span class="field-long" style="display: inline-block; width: auto;">{% if organization and organization.address %}{{ organization.address }}{% endif %}</span>
         </div>
         
         <div class="section">
@@ -173,56 +199,48 @@
             <div class="comment">(реквизиты доверенности или иного документа, подтверждающего полномочия представителя)</div>
         </div>
         
-        <div class="section" style="margin-top: 0.6em;">
+        <div class="info-block">
             <div class="bold">Цель получения, обработки и передачи персональных данных:</div>
-            <p class="indent small-text">
+            <p class="indent small-text" style="margin: 0.1em 0;">
                 оказание государственной услуги по признанию граждан нуждающимися в социальном обслуживании на территории Пензенской области (далее – государственная услуга).
             </p>
         </div>
         
         <div class="section">
             <div class="bold">Перечень персональных данных, на получение, обработку и передачу, которых дается согласие:</div>
-            <p class="small-text" style="margin: 0.2em 0;">
+            <p class="small-text" style="margin: 0.1em 0; text-align: justify;">
                 фамилия, имя, отчество; дата, место рождения; адрес регистрации или фактического жительства; семейное положение (сведения о заключении брака, о расторжении брака, сведения о рождении); состав семьи; ИНН, СНИЛС, номер телефона, паспортные данные; группа инвалидности при наличии; сведения медико-социальной экспертизы (МСЭ); индивидуальная программа инвалида (ИПРА); сведения о жилищно-бытовых условиях при составлении акта обследования условий жизнедеятельности гражданина; информация о состоянии здоровья (предоставляется исключительно в исполнение требований действующего законодательства о социальном обслуживании населения).
             </p>
         </div>
         
-        <div class="section">
-            <p class="indent small-text">
-                Гарантирует обработку персональных данных недееспособного в соответствии с действующим законодательством Российской Федерации как неавтоматизированным, так и автоматизированным способами.
-            </p>
-        </div>
+        <p class="indent small-text" style="margin: 0.15em 0;">
+            Гарантирует обработку персональных данных недееспособного в соответствии с действующим законодательством Российской Федерации как неавтоматизированным, так и автоматизированным способами.
+        </p>
         
-        <div class="section">
-            <p class="indent small-text">
-                Данное согласие действует до достижения целей обработки персональных данных или в течение срока хранения информации.
-            </p>
-        </div>
+        <p class="indent small-text" style="margin: 0.15em 0;">
+            Данное согласие действует до достижения целей обработки персональных данных или в течение срока хранения информации.
+        </p>
         
-        <div class="section">
-            <p class="indent small-text">
-                Данное согласие может быть отозвано в любой момент по моему письменному заявлению.
-            </p>
-        </div>
+        <p class="indent small-text" style="margin: 0.15em 0;">
+            Данное согласие может быть отозвано в любой момент по моему письменному заявлению.
+        </p>
         
-        <div class="section">
-            <p class="indent small-text">
-                Я подтверждаю, что, давая такое согласие, я действую по собственной воле и в интересах недееспособного.
-            </p>
-        </div>
+        <p class="indent small-text" style="margin: 0.15em 0;">
+            Я подтверждаю, что, давая такое согласие, я действую по собственной воле и в интересах недееспособного.
+        </p>
         
         <div class="signature-block">
             <div class="signature-left">
                 <div class="bold">Директор</div>
-                <div>ГАУСО ПО «Сосновский ДСО»</div>
+                <div>{% if organization %}{{ organization.short_name|default:organization.name }}{% else %}[Организация]{% endif %}</div>
             </div>
             <div class="signature-right">
                 <span class="signature-line"></span> / <span class="signature-line"></span>
-                <div style="margin-top: 0.2em; font-size: 11pt;">А.В. Гущин</div>
+                <div style="margin-top: 0.1em; font-size: 10pt;">{% if director %}{{ director.short_name }}{% else %}[Не указан]{% endif %}</div>
             </div>
         </div>
         
-        <div style="margin-top: 1em; text-align: right;">
+        <div style="margin-top: 0.8em; text-align: right;">
             «___» _________________ {{ today|date:"Y" }} г.
         </div>
     </div>

@@ -1,0 +1,199 @@
+{% extends 'base.html' %}
+
+{% block title %}Групповое редактирование услуг{% endblock %}
+
+{% block content %}
+<div class="py-6">
+    <!-- Header -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mx-4 mb-4">
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div class="flex items-center gap-4">
+                <a href="{% url 'services:list' %}" class="p-2 hover:bg-slate-100 rounded-lg transition-colors" title="Назад к списку">
+                    <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                    </svg>
+                </a>
+                <div>
+                    <h1 class="text-xl font-semibold text-slate-800">Групповое редактирование услуг</h1>
+                    <p class="text-sm text-slate-500 mt-1">Изменяйте стоимость и параметры нескольких услуг одновременно</p>
+                </div>
+            </div>
+            
+            <!-- Фильтр по категории -->
+            <div class="flex items-center gap-3">
+                <label class="text-sm font-medium text-slate-600">Категория:</label>
+                <select id="categoryFilter" onchange="filterByCategory()"
+                        class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                    <option value="">Все категории</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}" {% if selected_category == cat.id|stringformat:"s" %}selected{% endif %}>
+                        {{ cat.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Инструкции -->
+    <div id="instructionCard" class="bg-amber-50 border border-amber-200 rounded-xl p-4 mx-4 mb-4 relative" style="display: none;">
+    <script>
+        if (localStorage.getItem('bulkEditInstructionHidden') !== 'true') {
+            document.getElementById('instructionCard').style.display = 'block';
+        }
+    </script>
+        <button type="button" onclick="closeInstruction()"
+                class="absolute top-3 right-3 p-1 text-amber-400 hover:text-amber-600 hover:bg-amber-100 rounded-lg transition-colors"
+                title="Скрыть инструкцию">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+        </button>
+        <div class="flex items-start gap-3 pr-6">
+            <svg class="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <div class="text-sm text-amber-800">
+                <p class="font-medium">Инструкция:</p>
+                <ul class="mt-1 list-disc list-inside space-y-0.5 text-amber-700">
+                    <li>Измените стоимость, периодичность или статус активности услуг</li>
+                    <li>Нажмите "Сохранить изменения" внизу страницы</li>
+                    <li>Сохранятся только те поля, которые были изменены</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Форма -->
+    <form method="post" id="bulkEditForm">
+        {% csrf_token %}
+        
+        <!-- Таблица услуг -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 mx-4 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-slate-50 border-b border-slate-200">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider w-24">
+                                Код
+                            </th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                Наименование
+                            </th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider w-32">
+                                Категория
+                            </th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider w-32">
+                                Стоимость (руб.)
+                            </th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider w-40">
+                                Периодичность
+                            </th>
+                            <th class="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider w-24">
+                                Активна
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200">
+                        {% for service in services %}
+                        <tr class="hover:bg-slate-50 transition-colors {% if not service.is_active %}opacity-60{% endif %}" data-category="{{ service.category.id }}">
+                            <td class="px-4 py-3">
+                                <span class="text-sm font-bold text-primary-600">{{ service.code }}</span>
+                            </td>
+                            <td class="px-4 py-3">
+                                <span class="text-sm text-slate-800">{{ service.name }}</span>
+                                {% if service.parent %}
+                                <span class="text-xs text-slate-400 block">↳ {{ service.parent.code }}. {{ service.parent.name }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-3">
+                                <span class="text-xs text-slate-600">{{ service.category.name }}</span>
+                            </td>
+                            <td class="px-4 py-3">
+                                <input type="number" name="price_{{ service.id }}"
+                                       value="{{ service.price|stringformat:".2f" }}"
+                                       step="0.01" min="0"
+                                       class="w-24 px-2 py-1.5 bg-slate-50 border border-slate-200 rounded text-sm text-right focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                       onchange="markChanged(this)">
+                            </td>
+                            <td class="px-4 py-3">
+                                <select name="frequency_{{ service.id }}"
+                                        class="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 rounded text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                        onchange="markChanged(this)">
+                                    <option value="">Не указана</option>
+                                    {% for freq in frequencies %}
+                                    <option value="{{ freq.id }}" {% if service.frequency_id == freq.id %}selected{% endif %}>
+                                        {{ freq.short_name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td class="px-4 py-3 text-center">
+                                <label class="inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" name="is_active_{{ service.id }}" 
+                                           {% if service.is_active %}checked{% endif %}
+                                           class="sr-only peer"
+                                           onchange="markChanged(this); toggleRowStyle(this)">
+                                    <div class="relative w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500"></div>
+                                </label>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="px-4 py-12 text-center text-slate-500">
+                                Нет услуг для отображения
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Кнопки -->
+        <div class="flex gap-3 mt-6 mx-4">
+            <a href="{% url 'services:list' %}" 
+               class="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg transition-colors text-center">
+                Отмена
+            </a>
+            <button type="submit" 
+                    class="flex-1 px-4 py-2.5 bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium rounded-lg transition-colors">
+                Сохранить изменения
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+function filterByCategory() {
+    const categoryId = document.getElementById('categoryFilter').value;
+    let url = '{% url "services:bulk_edit" %}';
+    if (categoryId) {
+        url += '?category=' + categoryId;
+    }
+    window.location.href = url;
+}
+
+function markChanged(element) {
+    element.classList.add('border-primary-500', 'bg-primary-50');
+}
+
+function toggleRowStyle(checkbox) {
+    const row = checkbox.closest('tr');
+    if (checkbox.checked) {
+        row.classList.remove('opacity-60');
+    } else {
+        row.classList.add('opacity-60');
+    }
+}
+
+function closeInstruction() {
+    const card = document.getElementById('instructionCard');
+    if (card) {
+        card.style.display = 'none';
+        localStorage.setItem('bulkEditInstructionHidden', 'true');
+    }
+}
+
+</script>
+{% endblock %}

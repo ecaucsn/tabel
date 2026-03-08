@@ -221,13 +221,21 @@
         <!-- Исполнитель -->
         <div class="act-info">
             <span class="act-info-label">Исполнитель:</span>
-            <span> Государственное автономное учреждение социального обслуживания граждан пожилого возраста и инвалидов системы социальной защиты населения Пензенской области "Сосновский дом социального обслуживания" в лице заместителя директора по социальной работе Бондаренко Кирилла Петровича
-		</div>
+            {% if executor_organization %}
+            <span>{{ executor_organization.name }}{% if executor_signatory %} в лице {{ executor_signatory.position|default:"" }} {{ executor_signatory.get_full_name }}{% endif %}</span>
+            {% else %}
+            <span class="text-red-500">Не указана организация-исполнитель (настройте в админке)</span>
+            {% endif %}
+        </div>
         
         <!-- Заказчик -->
         <div class="act-info">
             <span class="act-info-label">Заказчик:</span>
-            <span>  Управление социальной защиты населения администрации Бесоновского района в лице заместителя начальника Управления Соколова Сергея Анатольевича, действующего в интересах недееспособного {{ recipient.full_name }} {{ recipient.birth_date|date:"d.m.Y" }}г.</span>
+            {% if customer_organization %}
+            <span>{{ customer_organization.name }}{% if customer_signatory %} в лице {{ customer_signatory.position|default:"" }} {{ customer_signatory.get_full_name }}{% endif %}, действующего в интересах недееспособного {{ recipient.full_name }} {{ recipient.birth_date|date:"d.m.Y" }}г.</span>
+            {% else %}
+            <span class="text-red-500">Не указана организация-заказчик (настройте в админке)</span>
+            {% endif %}
         </div>
         
         <div class="act-note">
@@ -315,9 +323,18 @@
         <!-- Signatures -->
         <div class="signatures">
             <div class="signature-block">
-                Исполнитель ___________________________ К.П. Бондаренко &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;  Заказчик ___________________________ С.А. Соколов<br>
+                {% if executor_signatory %}
+                    Исполнитель ___________________________ {{ executor_signatory.short_name }}
+                {% else %}
+                    Исполнитель ___________________________ [Не указан]
+                {% endif %}
+                &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+                {% if customer_signatory %}
+                    Заказчик ___________________________ {{ customer_signatory.short_name }}
+                {% else %}
+                    Заказчик ___________________________ [Не указан]
+                {% endif %}
             </div>
-            
         </div>
     </div>
     

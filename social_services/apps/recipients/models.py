@@ -83,6 +83,15 @@ class Recipient(models.Model):
         default=None,
         help_text='Фактически перечислено Пенсионным фондом в ДСО'
     )
+    
+    # Паспортные данные (доступны только для роли hr)
+    passport_series = models.CharField('Серия паспорта', max_length=4, blank=True, default='')
+    passport_number = models.CharField('Номер паспорта', max_length=6, blank=True, default='')
+    passport_issued_by = models.CharField('Кем выдан', max_length=255, blank=True, default='')
+    passport_issue_date = models.DateField('Дата выдачи', null=True, blank=True)
+    passport_department_code = models.CharField('Код подразделения', max_length=7, blank=True, default='')
+    phone = models.CharField('Телефон', max_length=20, blank=True, default='')
+    
     created_at = models.DateTimeField('Создано', auto_now_add=True)
     updated_at = models.DateTimeField('Обновлено', auto_now=True)
     

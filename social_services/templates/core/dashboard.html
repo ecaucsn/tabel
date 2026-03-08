@@ -7,7 +7,7 @@
     <!-- Welcome Section -->
     <div class="mb-8">
         <h1 class="text-2xl font-semibold text-slate-800">Добро пожаловать, {{ user.get_full_name }}!</h1>
-        <p class="text-slate-500 mt-1">Операционная система дома социального обслуживания</p>
+        <p class="text-slate-500 mt-1">Автоматизация социального обслуживания</p>
     </div>
     
     <!-- Main Stats Cards -->
@@ -42,10 +42,7 @@
                     </svg>
                 </div>
             </div>
-            <div class="mt-4 flex items-center text-sm">
-                <span class="text-slate-600 font-medium">{{ stats.services_amount_month|floatformat:0 }} ₽</span>
-                <span class="text-slate-400 ml-1">на сумму</span>
-            </div>
+          
         </div>
         
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
@@ -245,7 +242,7 @@
             </div>
             {% if recent_food_requests %}
             <div class="space-y-3">
-                {% for req in recent_food_requests %}
+                {% for req in recent_food_requests|slice:":5" %}
                 <div class="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
                     <div class="flex items-center gap-3">
                         <div class="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
@@ -282,7 +279,7 @@
             </div>
             {% if recent_history %}
             <div class="space-y-3">
-                {% for history in recent_history %}
+                {% for history in recent_history|slice:":5" %}
                 <div class="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
                     <div class="flex items-center gap-3">
                         <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -315,56 +312,5 @@
         </div>
     </div>
     
-    <!-- Bottom Grid -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Recent Service Logs -->
-        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-            <h2 class="text-lg font-semibold text-slate-800 mb-4">Последние записи в табеле</h2>
-            {% if recent_logs %}
-            <div class="space-y-3">
-                {% for log in recent_logs %}
-                <div class="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
-                    <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-sm font-medium text-slate-600">
-                            {{ log.recipient.full_name|slice:":1" }}
-                        </div>
-                        <div>
-                            <p class="text-sm font-medium text-slate-700">{{ log.recipient.full_name }}</p>
-                            <p class="text-xs text-slate-500">{{ log.service.name }}</p>
-                        </div>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-sm font-medium text-slate-700">{{ log.quantity }} шт.</p>
-                        <p class="text-xs text-slate-400">{{ log.date|date:"d.m.Y" }}</p>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-            {% else %}
-            <p class="text-slate-500 text-sm py-4 text-center">Нет записей за этот месяц</p>
-            {% endif %}
-        </div>
-        
-        <!-- Departments -->
-        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-lg font-semibold text-slate-800">Отделения</h2>
-                <a href="{% url 'departments' %}" class="text-sm text-primary-600 hover:text-primary-700">Подробнее →</a>
-            </div>
-            <div class="space-y-3">
-                {% for dept in departments %}
-                <div class="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
-                    <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 bg-primary-100 rounded-lg flex items-center justify-center">
-                            <span class="text-sm font-medium text-primary-600">{{ dept.name|slice:":1" }}</span>
-                        </div>
-                        <span class="text-sm font-medium text-slate-700">{{ dept.name }}</span>
-                    </div>
-                    <span class="text-sm text-slate-500">{{ dept.recipient_count }} чел.</span>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-    </div>
 </div>
 {% endblock %}
