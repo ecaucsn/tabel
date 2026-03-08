@@ -978,6 +978,18 @@ def recipient_create(request):
         if request.FILES.get('photo'):
             recipient.photo = request.FILES['photo']
         
+        # Паспортные данные (только для HR)
+        if user.role == 'hr' or user.is_superuser:
+            recipient.passport_series = request.POST.get('passport_series', '')
+            recipient.passport_number = request.POST.get('passport_number', '')
+            recipient.passport_issued_by = request.POST.get('passport_issued_by', '')
+            recipient.passport_department_code = request.POST.get('passport_department_code', '')
+            recipient.phone = request.POST.get('phone', '')
+            
+            passport_issue_date = request.POST.get('passport_issue_date')
+            if passport_issue_date:
+                recipient.passport_issue_date = passport_issue_date
+        
         recipient.save()
         
         # Создаём запись в истории о заселении
