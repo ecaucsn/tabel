@@ -1,9 +1,13 @@
 from django.urls import path
+from django.views.generic import RedirectView
 from . import views
 
 app_name = 'modules'
 
 urlpatterns = [
+    # Редирект с /modules/ на /modules/requests/
+    path('', RedirectView.as_view(pattern_name='modules:requests', permanent=False)),
+    
     # Заявки на паёк
     path('requests/', views.RequestsListView.as_view(), name='requests'),
     path('requests/create/', views.RequestCreateView.as_view(), name='request_create'),
