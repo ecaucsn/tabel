@@ -5,6 +5,7 @@ app_name = 'recipients'
 
 urlpatterns = [
     path('', views.recipient_list, name='list'),
+    path('create/', views.recipient_create, name='create'),
     path('<int:pk>/', views.recipient_detail, name='detail'),
     path('<int:pk>/contract/', views.edit_contract, name='contract'),
     path('<int:pk>/change-status/', views.change_status, name='change_status'),

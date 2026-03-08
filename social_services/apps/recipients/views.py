@@ -937,3 +937,74 @@ def consent_opd_print(request, pk):
     }
     
     return render(request, 'recipients/consent_opd_print.html', context)
+
+
+@login_required
+def recipient_create(request):
+    """Создание нового проживающего"""
+    user = request.user
+    
+    # Только админы и HR могут создавать проживающих
+    if not user.is_admin_or_hr:
+        return HttpResponseForbidden('Нет прав для создания проживающего')
+    
+    if request.method == 'POST':
+        # Создаём нового проживающего
+        recipient = Recipient(
+            last_name=request.POST.get('last_name', ''),
+            first_name=request.POST.get('first_name', ''),
+            patronymic=request.POST.get('patronymic', ''),
+            birth_date=request.POST.get('birth_date') or None,
+        )
+        
+        # Отделение и комната
+        dept_id = request.POST.get('department')
+        if dept_id:
+            try:
+                recipient.department = Department.objects.get(id=dept_id)
+            except Department.DoesNotExist:
+                pass
+        recipient.room = request.POST.get('room', '')
+        
+        # Дата заселения
+        admission_date = request.POST.get('admission_date')
+        if admission_date:
+            recipient.admission_date = admission_date
+        
+        # Размещение
+        recipient.placement = request.POST.get('placement', 'internat')
+        
+        # Фото
+        if request.FILES.get('photo'):
+            recipient.photo = request.FILES['photo']
+        
+        recipient.save()
+        
+        # Создаём запись в истории о заселении
+        RecipientHistory.objects.create(
+            recipient=recipient,
+            old_placement=None,
+            new_placement=recipient.placement,
+            old_department=None,
+            new_department=recipient.department,
+            old_room=None,
+            new_room=recipient.room,
+            reason='Первичное заселение',
+            date=date.today(),
+            changed_by=user
+        )
+        
+        return redirect('recipients:detail', pk=recipient.id)
+    
+    # GET запрос - показываем форму
+    departments = Department.objects.filter(
+        department_type__in=['residential', 'mercy', 'hospital']
+    )
+    
+    context = {
+        'departments': departments,
+        'placement_choices': Recipient.PLACEMENT_CHOICES,
+        'today': date.today().isoformat(),
+    }
+    
+    return render(request, 'recipients/recipient_create.html', context)
