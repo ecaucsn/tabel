@@ -341,3 +341,43 @@ class ServiceRecipient(models.Model):
     
     def __str__(self):
         return f"{self.service.code} - {self.recipient.short_name}"
+
+
+class ServiceRecipientLock(models.Model):
+    """Блокировка конкретной услуги для получателя на месяц"""
+    
+    service = models.ForeignKey(
+        Service,
+        on_delete=models.CASCADE,
+        related_name='recipient_locks',
+        verbose_name='Услуга'
+    )
+    recipient = models.ForeignKey(
+        'recipients.Recipient',
+        on_delete=models.CASCADE,
+        related_name='service_locks',
+        verbose_name='Получатель услуги'
+    )
+    year = models.IntegerField('Год')
+    month = models.IntegerField('Месяц')
+    is_locked = models.BooleanField('Заблокировано', default=True)
+    locked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='service_recipient_locks',
+        verbose_name='Заблокировал'
+    )
+    locked_at = models.DateTimeField('Дата блокировки', auto_now_add=True)
+    updated_at = models.DateTimeField('Обновлено', auto_now=True)
+    
+    class Meta:
+        verbose_name = 'Блокировка услуги получателя'
+        verbose_name_plural = 'Блокировки услуг получателей'
+        unique_together = ['service', 'recipient', 'year', 'month']
+        ordering = ['-year', '-month', 'service', 'recipient']
+    
+    def __str__(self):
+        status = "🔒" if self.is_locked else "🔓"
+        return f"{status} {self.service.code} - {self.recipient.short_name} - {self.month}.{self.year}"

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import ServiceCategory, Service, ServiceLog, ServiceFrequency, ServiceSchedule, ServiceRecipient, TabelLock
+from .models import ServiceCategory, Service, ServiceLog, ServiceFrequency, ServiceSchedule, ServiceRecipient, TabelLock, ServiceRecipientLock
 
 
 class ServiceInline(admin.TabularInline):
@@ -92,3 +92,14 @@ class TabelLockAdmin(admin.ModelAdmin):
     raw_id_fields = ['recipient', 'locked_by']
     date_hierarchy = 'locked_at'
     ordering = ['-year', '-month', 'recipient__last_name']
+
+
+@admin.register(ServiceRecipientLock)
+class ServiceRecipientLockAdmin(admin.ModelAdmin):
+    list_display = ['service', 'recipient', 'year', 'month', 'is_locked', 'locked_by', 'locked_at']
+    list_filter = ['is_locked', 'year', 'month', 'service', 'recipient__department']
+    search_fields = ['service__code', 'service__name', 'recipient__last_name', 'recipient__first_name']
+    list_editable = ['is_locked']
+    raw_id_fields = ['service', 'recipient', 'locked_by']
+    date_hierarchy = 'locked_at'
+    ordering = ['-year', '-month', 'service__code', 'recipient__last_name']

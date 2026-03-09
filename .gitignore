@@ -58,3 +58,6 @@ Thumbs.db
 
 # Data directory (for Docker volume)
 data/
+
+# Cookie files (security)
+cookies.txt

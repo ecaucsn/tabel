@@ -153,6 +153,16 @@
     .day-cell.weekend.count-0 { background: #fef2f2 !important; color: #fef2f2; }
     .day-cell.weekend.count-1 { background: linear-gradient(135deg, #f87171 0%, #ef4444 100%) !important; }
     
+    /* Service locked cells */
+    .day-cell.service-locked {
+        opacity: 0.6;
+        cursor: not-allowed !important;
+        position: relative;
+    }
+    .day-cell.service-locked:hover {
+        transform: none;
+    }
+    
     /* Total Cell */
     .total-cell {
         background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
@@ -364,6 +374,18 @@
                         </svg>
                         Очистить таблицу
                     </button>
+                      <button onclick="toggleLockService()"
+                            id="lockServiceBtn"
+                            class="w-full px-3 py-2 {% if is_service_locked %}bg-green-600 hover:bg-green-700{% else %}bg-blue-500 hover:bg-blue-600{% endif %} text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            {% if is_service_locked %}
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/>
+                            {% else %}
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                            {% endif %}
+                        </svg>
+                        <span id="lockBtnText">{% if is_service_locked %}Разблокировать{% else %}Заблокировать{% endif %}</span>
+                    </button>
                 </div>
                 
                 <!-- Button to open modal -->
@@ -556,6 +578,7 @@ const month = {{ month }};
 const daysInMonth = {{ days_in_month }};
 const weekends = {{ weekends|safe|default:"[]" }};
 const maxPerMonth = {{ max_per_month|default:"null" }};
+let isServiceLocked = {{ is_service_locked|yesno:"true,false" }};
 
 // Initialize cells on page load
 document.addEventListener('DOMContentLoaded', function() {
@@ -572,7 +595,24 @@ document.addEventListener('DOMContentLoaded', function() {
         // Update total
         updateTotal(recipientId);
     });
+    
+    // Apply lock state to cells if service is locked
+    if (isServiceLocked) {
+        applyLockState();
+    }
 });
+
+// Apply visual lock state to all cells
+function applyLockState() {
+    const cells = document.querySelectorAll('.day-cell');
+    cells.forEach(cell => {
+        if (isServiceLocked) {
+            cell.classList.add('service-locked');
+        } else {
+            cell.classList.remove('service-locked');
+        }
+    });
+}
 
 // Filter services by search text
 function filterServices() {
@@ -610,6 +650,12 @@ function applyFilters() {
 
 // Toggle cell
 function toggleCell(recipientId, day) {
+    // Check if service is locked
+    if (isServiceLocked) {
+        alert('Услуга заблокирована. Редактирование невозможно.');
+        return;
+    }
+    
     const cell = document.getElementById(`cell-${recipientId}-${day}`);
     if (!cell) return;
     
@@ -710,6 +756,12 @@ function updateTotal(recipientId) {
 
 // Clear column - optimized with single server request
 function clearColumn(day) {
+    // Check if service is locked
+    if (isServiceLocked) {
+        alert('Услуга заблокирована. Редактирование невозможно.');
+        return;
+    }
+    
     if (!confirm(`Очистить все услуги за ${day}-е число?`)) return;
     
     // Send request to server
@@ -737,6 +789,12 @@ function clearColumn(day) {
 
 // Clear all - optimized with single server request
 function clearAll() {
+    // Check if service is locked
+    if (isServiceLocked) {
+        alert('Услуга заблокирована. Редактирование невозможно.');
+        return;
+    }
+    
     const btn = event.target.closest('button');
     const originalText = btn.innerHTML;
     btn.innerHTML = '<svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Очистка...';
@@ -771,6 +829,12 @@ function clearAll() {
 
 // Autofill month based on schedule and frequency
 function autofillMonth() {
+    // Check if service is locked
+    if (isServiceLocked) {
+        alert('Услуга заблокирована. Автозаполнение невозможно.');
+        return;
+    }
+    
     // Show loading state
     const btn = event.target.closest('button');
     const originalText = btn.innerHTML;
@@ -803,6 +867,69 @@ function autofillMonth() {
     .catch(error => {
         console.error('Error:', error);
         btn.innerHTML = originalText;
+        btn.disabled = false;
+    });
+}
+
+// Toggle lock service for all recipients
+function toggleLockService() {
+    const btn = document.getElementById('lockServiceBtn');
+    const btnText = document.getElementById('lockBtnText');
+    const originalText = btnText.textContent;
+    
+    btnText.textContent = 'Обработка...';
+    btn.disabled = true;
+    
+    console.log('toggleLockService: Starting request...');
+    fetch('', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: 'action=toggle_lock_service'
+    })
+    .then(response => {
+        console.log('toggleLockService: Response status:', response.status);
+        return response.json();
+    })
+    .then(data => {
+        console.log('toggleLockService: Response data:', data);
+        if (data.success) {
+            // Update global lock state variable
+            isServiceLocked = data.is_locked;
+            
+            // Apply visual lock state to cells
+            applyLockState();
+            
+            // Update button appearance based on lock state
+            if (data.is_locked) {
+                btn.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+                btn.classList.add('bg-green-600', 'hover:bg-green-700');
+                btnText.textContent = 'Разблокировать';
+                // Change icon to unlocked
+                btn.querySelector('svg').innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/>';
+            } else {
+                btn.classList.remove('bg-green-600', 'hover:bg-green-700');
+                btn.classList.add('bg-blue-500', 'hover:bg-blue-600');
+                btnText.textContent = 'Заблокировать';
+                // Change icon to locked
+                btn.querySelector('svg').innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>';
+            }
+            // Show notification
+            if (data.message) {
+                alert(data.message);
+            }
+        } else {
+            alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+            btnText.textContent = originalText;
+        }
+        btn.disabled = false;
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Ошибка соединения');
+        btnText.textContent = originalText;
         btn.disabled = false;
     });
 }

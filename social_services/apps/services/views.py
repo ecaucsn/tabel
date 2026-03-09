@@ -14,7 +14,7 @@ from django.utils import timezone
 from django_htmx.http import trigger_client_event
 from django.contrib import messages
 
-from apps.services.models import Service, ServiceCategory, ServiceLog, ServiceSchedule, TabelLock, ServiceRecipient, ServiceFrequency
+from apps.services.models import Service, ServiceCategory, ServiceLog, ServiceSchedule, TabelLock, ServiceRecipient, ServiceFrequency, ServiceRecipientLock
 from apps.recipients.models import Recipient, ContractService, RecipientHistory, Contract
 from apps.core.models import Department
 
@@ -264,9 +264,16 @@ def tabel_view(request):
     """Представление табеля учета услуг"""
     user = request.user
     
-    # Получаем параметры фильтрации
-    year = int(request.GET.get('year', timezone.now().year))
-    month = int(request.GET.get('month', timezone.now().month - 1))  # 0-indexed
+    # Получаем параметры фильтрации с безопасным преобразованием
+    try:
+        year = int(request.GET.get('year', timezone.now().year))
+    except (ValueError, TypeError):
+        year = timezone.now().year
+    
+    try:
+        month = int(request.GET.get('month', timezone.now().month - 1))  # 0-indexed
+    except (ValueError, TypeError):
+        month = timezone.now().month - 1
     department_id = request.GET.get('department', '')
     recipient_id = request.GET.get('recipient', '')
     
@@ -482,6 +489,20 @@ def service_log_api(request):
         # Получаем услугу
         service = get_object_or_404(Service, id=service_id)
         
+        # Проверяем блокировку услуги для получателя
+        service_lock = ServiceRecipientLock.objects.filter(
+            service=service,
+            recipient=recipient,
+            year=year,
+            month=month,
+            is_locked=True
+        ).first()
+        if service_lock:
+            return JsonResponse({
+                'error': f'Услуга заблокирована. Редактирование невозможно.',
+                'locked': True
+            }, status=403)
+        
         # Проверяем batch-режим (заполнение всей строки)
         if data.get('batch') == 'true':
             days = json.loads(data.get('days', '[]'))
@@ -608,8 +629,15 @@ def get_category_services_api(request):
     try:
         category_id = request.GET.get('category_id')
         recipient_id = request.GET.get('recipient_id')
-        year = int(request.GET.get('year', timezone.now().year))
-        month = int(request.GET.get('month', timezone.now().month))  # 1-12
+        try:
+            year = int(request.GET.get('year', timezone.now().year))
+        except (ValueError, TypeError):
+            year = timezone.now().year
+        
+        try:
+            month = int(request.GET.get('month', timezone.now().month))  # 1-12
+        except (ValueError, TypeError):
+            month = timezone.now().month
         
         if not category_id or not recipient_id:
             return JsonResponse({'error': 'Не указаны category_id или recipient_id'}, status=400)
@@ -656,6 +684,14 @@ def get_category_services_api(request):
             key = f"{log['service_id']}-{log['date__day']}"
             logs_dict[key] = int(log['total_quantity'])
         
+        # Получаем заблокированные услуги для данного получателя
+        locked_service_ids = set(ServiceRecipientLock.objects.filter(
+            recipient=recipient,
+            year=year,
+            month=month,
+            is_locked=True
+        ).values_list('service_id', flat=True))
+        
         # Формируем данные услуг
         services_data = []
         for service in services:
@@ -664,7 +700,8 @@ def get_category_services_api(request):
                 'code': service.code,
                 'name': service.name,
                 'max_quantity_per_month': service.max_quantity_per_month,
-                'logs': {}
+                'logs': {},
+                'is_locked': service.id in locked_service_ids
             }
             # Добавляем логи для этой услуги
             for day in range(1, days_in_month + 1):
@@ -744,12 +781,23 @@ def clear_month_api(request):
                 'locked': True
             }, status=403)
         
-        # Удаляем все записи за месяц
-        deleted_count, _ = ServiceLog.objects.filter(
+        # Получаем ID заблокированных услуг для данного получателя
+        locked_service_ids = ServiceRecipientLock.objects.filter(
+            recipient=recipient,
+            year=year,
+            month=month,
+            is_locked=True
+        ).values_list('service_id', flat=True)
+        
+        # Удаляем все записи за месяц, кроме заблокированных услуг
+        queryset = ServiceLog.objects.filter(
             recipient=recipient,
             date__year=year,
             date__month=month
-        ).delete()
+        )
+        if locked_service_ids:
+            queryset = queryset.exclude(service_id__in=locked_service_ids)
+        deleted_count, _ = queryset.delete()
         
         return JsonResponse({
             'success': True,
@@ -793,14 +841,25 @@ def clear_day_api(request):
                 'locked': True
             }, status=403)
         
+        # Получаем ID заблокированных услуг для данного получателя
+        locked_service_ids = ServiceRecipientLock.objects.filter(
+            recipient=recipient,
+            year=year,
+            month=month,
+            is_locked=True
+        ).values_list('service_id', flat=True)
+        
         # Формируем дату
         service_date = date(year, month, day)
         
-        # Удаляем записи за указанный день
-        deleted_count, _ = ServiceLog.objects.filter(
+        # Удаляем записи за указанный день, кроме заблокированных услуг
+        queryset = ServiceLog.objects.filter(
             recipient=recipient,
             date=service_date
-        ).delete()
+        )
+        if locked_service_ids:
+            queryset = queryset.exclude(service_id__in=locked_service_ids)
+        deleted_count, _ = queryset.delete()
         
         return JsonResponse({
             'success': True,
@@ -817,9 +876,16 @@ def tabel_print_view(request):
     """Представление для печати табеля"""
     user = request.user
     
-    # Получаем параметры
-    year = int(request.GET.get('year', timezone.now().year))
-    month = int(request.GET.get('month', timezone.now().month - 1))  # 0-indexed
+    # Получаем параметры с безопасным преобразованием
+    try:
+        year = int(request.GET.get('year', timezone.now().year))
+    except (ValueError, TypeError):
+        year = timezone.now().year
+    
+    try:
+        month = int(request.GET.get('month', timezone.now().month - 1))  # 0-indexed
+    except (ValueError, TypeError):
+        month = timezone.now().month - 1
     recipient_id = request.GET.get('recipient')
     
     # Корректируем месяц
@@ -1088,6 +1154,14 @@ def autofill_tabel(request):
                 'locked': True
             }, status=403)
         
+        # Получаем ID заблокированных услуг для данного получателя
+        locked_service_ids = set(ServiceRecipientLock.objects.filter(
+            recipient=recipient,
+            year=year,
+            month=month,
+            is_locked=True
+        ).values_list('service_id', flat=True))
+        
         # Получаем дни, в которые проживающий был неактивен (в отпуске, больнице, выбыл)
         # Это позволяет корректно заполнять табель за прошлые периоды, даже если текущий статус неактивный
         inactive_days = get_inactive_days_in_month(recipient, year, month)
@@ -1151,6 +1225,10 @@ def autofill_tabel(request):
         for cs in contract_services:
             service = cs.service
             service_id = service.id
+            
+            # Пропускаем заблокированные услуги
+            if service_id in locked_service_ids:
+                continue
             
             # Инициализируем счётчик для услуги если нет
             if service_id not in service_totals:
@@ -1247,6 +1325,10 @@ def autofill_tabel(request):
             service = assigned.service
             service_id = service.id
             
+            # Пропускаем заблокированные услуги
+            if service_id in locked_service_ids:
+                continue
+            
             # Пропускаем, если услуга уже обработана через ИППСУ
             if service_id in service_totals:
                 continue
@@ -1295,9 +1377,11 @@ def autofill_tabel(request):
                             ))
                             service_totals[service_id] += quantity
             else:
-                # Заполняем по периодичности назначения
-                if freq == 'daily':
-                    # Ежедневно
+                # Если расписания нет, заполняем по периодичности услуги
+                if service.frequency and service.frequency.period_type == 'day':
+                    # Ежедневные услуги
+                    times_per_day = service.frequency.times_per_period or 1
+                    
                     for day in range(1, days_in_month + 1):
                         # Пропускаем неактивные дни (отпуск, больница, выбыл)
                         if day in inactive_days:
@@ -1305,6 +1389,7 @@ def autofill_tabel(request):
                         
                         current_date = date(year, month, day)
                         
+                        # Проверяем лимит
                         max_quantity = service.max_quantity_per_month
                         if max_quantity and service_totals[service_id] >= max_quantity:
                             continue
@@ -1315,14 +1400,15 @@ def autofill_tabel(request):
                                 recipient=recipient,
                                 service=service,
                                 date=current_date,
-                                quantity=1,
+                                quantity=times_per_day,
                                 provider=user,
                                 price_at_service=service.price
                             ))
-                            service_totals[service_id] += 1
-                
-                elif freq == 'weekly':
-                    # Еженедельно - проставляем в первый понедельник месяца
+                            service_totals[service_id] += times_per_day
+                elif service.frequency and service.frequency.period_type == 'week':
+                    # Еженедельные услуги - проставляем в первый понедельник месяца
+                    times_per_week = service.frequency.times_per_period or 1
+                    
                     for day in range(1, days_in_month + 1):
                         # Пропускаем неактивные дни (отпуск, больница, выбыл)
                         if day in inactive_days:
@@ -1336,36 +1422,16 @@ def autofill_tabel(request):
                                     recipient=recipient,
                                     service=service,
                                     date=current_date,
-                                    quantity=1,
+                                    quantity=times_per_week,
                                     provider=user,
                                     price_at_service=service.price
                                 ))
-                                service_totals[service_id] += 1
+                                service_totals[service_id] += times_per_week
                             break
-                
-                elif freq == 'biweekly':
-                    # Раз в 2 недели - проставляем в 1-й и 15-й день
-                    for target_day in [1, 15]:
-                        if target_day <= days_in_month:
-                            # Пропускаем неактивные дни (отпуск, больница, выбыл)
-                            if target_day in inactive_days:
-                                continue
-                            
-                            current_date = date(year, month, target_day)
-                            key = (service_id, current_date)
-                            if key not in existing_logs_dict:
-                                logs_to_create.append(ServiceLog(
-                                    recipient=recipient,
-                                    service=service,
-                                    date=current_date,
-                                    quantity=1,
-                                    provider=user,
-                                    price_at_service=service.price
-                                ))
-                                service_totals[service_id] += 1
-                
-                elif freq == 'monthly':
-                    # Ежемесячно - проставляем в первый день месяца
+                elif service.frequency and service.frequency.period_type == 'month':
+                    # Ежемесячные услуги - проставляем в первый день месяца
+                    times_per_month = service.frequency.times_per_period or 1
+                    
                     # Пропускаем если день неактивный
                     if 1 not in inactive_days:
                         current_date = date(year, month, 1)
@@ -1375,36 +1441,43 @@ def autofill_tabel(request):
                                 recipient=recipient,
                                 service=service,
                                 date=current_date,
-                                quantity=1,
+                                quantity=times_per_month,
                                 provider=user,
                                 price_at_service=service.price
                             ))
-                            service_totals[service_id] += 1
-                
-                elif freq == 'quarterly':
-                    # Ежеквартально - проставляем если месяц кратен 3 (март, июнь, сентябрь, декабрь)
-                    if month % 3 == 0:
-                        # Пропускаем если день неактивный
-                        if 1 not in inactive_days:
-                            current_date = date(year, month, 1)
-                            key = (service_id, current_date)
-                            if key not in existing_logs_dict:
-                                logs_to_create.append(ServiceLog(
-                                    recipient=recipient,
-                                    service=service,
-                                    date=current_date,
-                                    quantity=1,
-                                    provider=user,
-                                    price_at_service=service.price
-                                ))
-                                service_totals[service_id] += 1
-                
-                elif freq == 'custom':
-                    # Индивидуальный график - пока проставляем в первый день
-                    # В будущем можно добавить парсинг custom_frequency
+                            service_totals[service_id] += times_per_month
+                elif service.frequency and service.frequency.period_type == 'year':
+                    # Ежегодные услуги - проставляем в первый день месяца
+                    times_per_year = service.frequency.times_per_period or 1
+                    
                     # Пропускаем если день неактивный
                     if 1 not in inactive_days:
                         current_date = date(year, month, 1)
+                        key = (service_id, current_date)
+                        if key not in existing_logs_dict:
+                            logs_to_create.append(ServiceLog(
+                                recipient=recipient,
+                                service=service,
+                                date=current_date,
+                                quantity=times_per_year,
+                                provider=user,
+                                price_at_service=service.price
+                            ))
+                            service_totals[service_id] += times_per_year
+                else:
+                    # Если периодичность не указана, заполняем ежедневно (по умолчанию)
+                    for day in range(1, days_in_month + 1):
+                        # Пропускаем неактивные дни (отпуск, больница, выбыл)
+                        if day in inactive_days:
+                            continue
+                        
+                        current_date = date(year, month, day)
+                        
+                        # Проверяем лимит
+                        max_quantity = service.max_quantity_per_month
+                        if max_quantity and service_totals[service_id] >= max_quantity:
+                            continue
+                        
                         key = (service_id, current_date)
                         if key not in existing_logs_dict:
                             logs_to_create.append(ServiceLog(
@@ -1446,8 +1519,20 @@ def get_service_logs_api(request):
     """API для получения всех логов услуг за месяц"""
     try:
         recipient_id = request.GET.get('recipient')
-        year = int(request.GET.get('year'))
-        month = int(request.GET.get('month'))  # 1-12
+        
+        # Проверяем обязательный параметр recipient
+        if not recipient_id:
+            return JsonResponse({'error': 'Параметр recipient обязателен'}, status=400)
+        
+        try:
+            year = int(request.GET.get('year'))
+        except (ValueError, TypeError):
+            year = timezone.now().year
+        
+        try:
+            month = int(request.GET.get('month'))  # 1-12
+        except (ValueError, TypeError):
+            month = timezone.now().month
         
         # Проверяем права доступа
         recipient = get_object_or_404(Recipient, id=recipient_id)
@@ -1535,9 +1620,16 @@ def service_recipients_tabel_view(request):
     
     user = request.user
     
-    # Получаем параметры фильтрации
-    year = int(request.GET.get('year', timezone.now().year))
-    month = int(request.GET.get('month', timezone.now().month))  # 1-12
+    # Получаем параметры фильтрации с безопасным преобразованием
+    try:
+        year = int(request.GET.get('year', timezone.now().year))
+    except (ValueError, TypeError):
+        year = timezone.now().year
+    
+    try:
+        month = int(request.GET.get('month', timezone.now().month))  # 1-12
+    except (ValueError, TypeError):
+        month = timezone.now().month
     service_id = request.GET.get('service')
     
     # Корректируем месяц
@@ -1660,6 +1752,17 @@ def service_recipients_tabel_view(request):
                 is_locked=True
             ).exists()
         
+        # Вспомогательная функция для проверки блокировки услуги получателя
+        def check_service_lock(service, recipient, year, month):
+            """Проверяет, заблокирована ли услуга для получателя на месяц"""
+            return ServiceRecipientLock.objects.filter(
+                service=service,
+                recipient=recipient,
+                year=year,
+                month=month,
+                is_locked=True
+            ).exists()
+        
         # Вспомогательная функция для проверки наличия услуги в ИППСУ
         def check_service_in_contract(recipient, service):
             """Проверяет, есть ли услуга в активном ИППСУ получателя"""
@@ -1684,6 +1787,14 @@ def service_recipients_tabel_view(request):
                     return JsonResponse({
                         'success': False,
                         'error': 'Табель заблокирован. Редактирование невозможно.',
+                        'locked': True
+                    }, status=403)
+                
+                # Проверяем блокировку услуги для получателя
+                if check_service_lock(selected_service, recipient, year, month):
+                    return JsonResponse({
+                        'success': False,
+                        'error': 'Услуга заблокирована. Редактирование невозможно.',
                         'locked': True
                     }, status=403)
                 
@@ -1909,7 +2020,10 @@ def service_recipients_tabel_view(request):
             unlocked_recipient_ids = []
             
             for assignment in assigned_recipients:
+                # Проверяем блокировку табеля И блокировку услуги
                 if check_tabel_lock(assignment.recipient, year, month):
+                    locked_recipients.append(assignment.recipient.full_name)
+                elif check_service_lock(selected_service, assignment.recipient, year, month):
                     locked_recipients.append(assignment.recipient.full_name)
                 else:
                     unlocked_recipient_ids.append(assignment.recipient_id)
@@ -1942,7 +2056,10 @@ def service_recipients_tabel_view(request):
             unlocked_recipient_ids = []
             
             for assignment in assigned_recipients:
+                # Проверяем блокировку табеля И блокировку услуги
                 if check_tabel_lock(assignment.recipient, year, month):
+                    locked_recipients.append(assignment.recipient.full_name)
+                elif check_service_lock(selected_service, assignment.recipient, year, month):
                     locked_recipients.append(assignment.recipient.full_name)
                 else:
                     unlocked_recipient_ids.append(assignment.recipient_id)
@@ -1996,8 +2113,13 @@ def service_recipients_tabel_view(request):
                 recipient_id = assignment.recipient_id
                 recipient = assignment.recipient
                 
-                # Проверяем блокировку - пропускаем заблокированных
+                # Проверяем блокировку табеля - пропускаем заблокированных
                 if check_tabel_lock(recipient, year, month):
+                    locked_recipients.append(recipient.full_name)
+                    continue
+                
+                # Проверяем блокировку услуги - пропускаем заблокированных
+                if check_service_lock(selected_service, recipient, year, month):
                     locked_recipients.append(recipient.full_name)
                     continue
                 
@@ -2115,6 +2237,72 @@ def service_recipients_tabel_view(request):
                 'locked_recipients': locked_recipients[:5],
                 'message': message
             })
+        
+        elif action == 'toggle_lock_service':
+            # Блокировка/разблокировка услуги для всех получателей в списке
+            if not selected_service:
+                return JsonResponse({'success': False, 'error': 'Услуга не выбрана'})
+            
+            # Получаем список ID получателей
+            recipient_ids = [ar.recipient_id for ar in assigned_recipients]
+            logger.info(f"toggle_lock_service: service={selected_service.id}, recipients={recipient_ids}, year={year}, month={month}")
+            
+            if not recipient_ids:
+                return JsonResponse({'success': False, 'error': 'Нет получателей для блокировки'})
+            
+            # Проверяем, есть ли уже блокировка для этой услуги и месяца
+            # Если хотя бы один заблокирован - считаем что все заблокированы и разблокируем
+            existing_locks = ServiceRecipientLock.objects.filter(
+                service=selected_service,
+                recipient_id__in=recipient_ids,
+                year=year,
+                month=month,
+                is_locked=True
+            ).count()
+            
+            logger.info(f"toggle_lock_service: existing_locks={existing_locks}")
+            
+            if existing_locks > 0:
+                # Разблокируем всех
+                ServiceRecipientLock.objects.filter(
+                    service=selected_service,
+                    recipient_id__in=recipient_ids,
+                    year=year,
+                    month=month
+                ).update(is_locked=False)
+                
+                return JsonResponse({
+                    'success': True,
+                    'is_locked': False,
+                    'message': f'Услуга разблокирована для {len(assigned_recipients)} получателей'
+                })
+            else:
+                # Блокируем всех
+                locks_to_create = []
+                for assignment in assigned_recipients:
+                    locks_to_create.append(ServiceRecipientLock(
+                        service=selected_service,
+                        recipient=assignment.recipient,
+                        year=year,
+                        month=month,
+                        is_locked=True,
+                        locked_by=user
+                    ))
+                
+                # Используем bulk_create с update_conflicts для существующих записей
+                if locks_to_create:
+                    ServiceRecipientLock.objects.bulk_create(
+                        locks_to_create,
+                        update_conflicts=True,
+                        update_fields=['is_locked', 'locked_by'],
+                        unique_fields=['service', 'recipient', 'year', 'month']
+                    )
+                
+                return JsonResponse({
+                    'success': True,
+                    'is_locked': True,
+                    'message': f'Услуга заблокирована для {len(locks_to_create)} получателей'
+                })
     
     # Все проживающие для выбора в модальном окне
     # Фильтруем только тех, у кого выбранная услуга есть в активном ИППСУ
@@ -2138,6 +2326,18 @@ def service_recipients_tabel_view(request):
     # ID уже назначенных получателей
     assigned_recipient_ids = [ar.recipient_id for ar in assigned_recipients]
     
+    # Проверяем, заблокирована ли услуга для получателей
+    is_service_locked = False
+    if selected_service and assigned_recipients:
+        # Проверяем, есть ли хотя бы одна активная блокировка
+        is_service_locked = ServiceRecipientLock.objects.filter(
+            service=selected_service,
+            recipient__in=[ar.recipient_id for ar in assigned_recipients],
+            year=year,
+            month=month,
+            is_locked=True
+        ).exists()
+    
     context = {
         'year': year,
         'month': month,
@@ -2156,6 +2356,7 @@ def service_recipients_tabel_view(request):
         'max_per_month': selected_service.max_quantity_per_month if selected_service else None,
         'all_recipients': all_recipients,
         'assigned_recipient_ids': assigned_recipient_ids,
+        'is_service_locked': is_service_locked,
     }
     
     return render(request, 'services/assign_service_tabel.html', context)

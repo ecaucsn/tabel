@@ -55,9 +55,16 @@ def act_generator(request):
     """Страница генерации актов - подобно странице табеля"""
     user = request.user
     
-    # Получаем параметры
-    year = int(request.GET.get('year', timezone.now().year))
-    month = int(request.GET.get('month', timezone.now().month))
+    # Получаем параметры с безопасным преобразованием
+    try:
+        year = int(request.GET.get('year', timezone.now().year))
+    except (ValueError, TypeError):
+        year = timezone.now().year
+    
+    try:
+        month = int(request.GET.get('month', timezone.now().month))
+    except (ValueError, TypeError):
+        month = timezone.now().month
     department_id = request.GET.get('department', '')
     recipient_id = request.GET.get('recipient', '')
     income = request.GET.get('income', '')

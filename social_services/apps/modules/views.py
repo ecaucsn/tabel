@@ -673,9 +673,16 @@ def monthly_purchase_create(request):
     """Создание ежемесячной заявки на продукты питания (массовое)"""
     from datetime import date
     
-    # Получаем параметры фильтрации
-    year = int(request.GET.get('year', date.today().year))
-    month = int(request.GET.get('month', date.today().month))
+    # Получаем параметры фильтрации с безопасным преобразованием
+    try:
+        year = int(request.GET.get('year', date.today().year))
+    except (ValueError, TypeError):
+        year = date.today().year
+    
+    try:
+        month = int(request.GET.get('month', date.today().month))
+    except (ValueError, TypeError):
+        month = date.today().month
     department_id = request.GET.get('department', '')
     set_type = request.GET.get('set_type', 'full')
     

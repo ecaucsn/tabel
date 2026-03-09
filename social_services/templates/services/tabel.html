@@ -265,6 +265,22 @@
     .day-cell.weekend.count-1 { background: linear-gradient(135deg, #f87171 0%, #ef4444 100%) !important; }
     .day-cell.weekend.count-2 { background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important; }
     
+    /* Service locked cells */
+    .day-cell.service-locked {
+        opacity: 0.6;
+        cursor: not-allowed !important;
+        position: relative;
+    }
+    .day-cell.service-locked:hover {
+        transform: none;
+    }
+    .service-locked-row {
+        background-color: #fef3c7 !important;
+    }
+    .service-locked-row .service-name {
+        color: #92400e;
+    }
+    
     /* Total Cell */
     .total-cell {
         background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
@@ -709,6 +725,7 @@
         services.forEach((service, index) => {
             const tr = document.createElement('tr');
             tr.dataset.serviceId = service.id;
+            tr.dataset.serviceLocked = service.is_locked ? 'true' : 'false';
             tr.style.animationDelay = `${index * 0.05}s`;
             
             // Service number
@@ -723,6 +740,9 @@
             tdName.dataset.service = service.id;
             tdName.title = 'Левый клик — заполнить строку, правый — сбросить';
             tdName.innerHTML = service.name;
+            if (service.is_locked) {
+                tdName.innerHTML += `<svg class="w-4 h-4 ml-2 inline text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" title="Услуга заблокирована"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>`;
+            }
             if (service.max_quantity_per_month) {
                 tdName.innerHTML += `<span class="ml-2 text-xs text-amber-600 font-normal" title="Ограничение в месяц">(макс. ${service.max_quantity_per_month})</span>`;
             }
@@ -734,10 +754,11 @@
             for (let day = 1; day <= daysInMonth; day++) {
                 const td = document.createElement('td');
                 const isWeekend = weekendsData.includes(day) || holidayDaysData.includes(day);
-                td.className = `day-cell count-0${isWeekend ? ' weekend-cell' : ''}`;
+                td.className = `day-cell count-0${isWeekend ? ' weekend-cell' : ''}${service.is_locked ? ' service-locked' : ''}`;
                 td.id = `cell-${service.id}-${day}`;
                 td.dataset.service = service.id;
                 td.dataset.day = day;
+                td.dataset.serviceLocked = service.is_locked ? 'true' : 'false';
                 if (service.max_quantity_per_month) {
                     td.dataset.max = service.max_quantity_per_month;
                 }
@@ -772,6 +793,13 @@
     function handleServiceNameClick(serviceId) {
         if (isLocked) return;
         
+        // Проверяем блокировку конкретной услуги
+        const row = document.querySelector(`tr[data-service-id="${serviceId}"]`);
+        if (row && row.dataset.serviceLocked === 'true') {
+            alert('Эта услуга заблокирована. Редактирование невозможно.');
+            return;
+        }
+        
         const cells = document.querySelectorAll(`[data-service="${serviceId}"].day-cell`);
         const days = [];
         cells.forEach(cell => {
@@ -792,6 +820,13 @@
     function handleServiceNameRightClick(e, serviceId) {
         e.preventDefault();
         if (isLocked) return;
+        
+        // Проверяем блокировку конкретной услуги
+        const row = document.querySelector(`tr[data-service-id="${serviceId}"]`);
+        if (row && row.dataset.serviceLocked === 'true') {
+            alert('Эта услуга заблокирована. Редактирование невозможно.');
+            return;
+        }
         
         const cells = document.querySelectorAll(`[data-service="${serviceId}"].day-cell`);
         const days = [];
@@ -1034,6 +1069,16 @@
     function handleCellClick(e) {
         e.preventDefault();
         const cell = e.target;
+        
+        // Проверяем блокировку всего табеля
+        if (isLocked) return;
+        
+        // Проверяем блокировку конкретной услуги
+        if (cell.dataset.serviceLocked === 'true') {
+            alert('Эта услуга заблокирована. Редактирование невозможно.');
+            return;
+        }
+        
         const serviceId = cell.dataset.service;
         const day = cell.dataset.day;
         const maxCount = parseInt(cell.dataset.max) || 4;
@@ -1047,6 +1092,16 @@
     function handleCellRightClick(e) {
         e.preventDefault();
         const cell = e.target;
+        
+        // Проверяем блокировку всего табеля
+        if (isLocked) return;
+        
+        // Проверяем блокировку конкретной услуги
+        if (cell.dataset.serviceLocked === 'true') {
+            alert('Эта услуга заблокирована. Редактирование невозможно.');
+            return;
+        }
+        
         const serviceId = cell.dataset.service;
         const day = cell.dataset.day;
         
@@ -1083,11 +1138,15 @@
     function updateCellDisplay(cell, count) {
         cell.dataset.count = count;
         cell.textContent = count > 0 ? count : '';
-        // Сохраняем класс weekend-cell если он есть
+        // Сохраняем классы weekend-cell и service-locked если они есть
         const isWeekend = cell.classList.contains('weekend-cell');
+        const isServiceLocked = cell.classList.contains('service-locked');
         cell.className = `day-cell count-${count}`;
         if (isWeekend) {
             cell.classList.add('weekend-cell');
+        }
+        if (isServiceLocked) {
+            cell.classList.add('service-locked');
         }
     }
     
